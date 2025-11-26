@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
-import com.example.photosmanager.util.NotificationHelper
 import kotlinx.coroutines.launch
 
 class ConfirmDeleteActivity : ComponentActivity() {
@@ -101,9 +100,6 @@ class ConfirmDeleteActivity : ComponentActivity() {
                     deletedCount++
                 }
             }
-            
-            val totalDeleted = photoRepository.getTotalDeletedCount()
-            NotificationHelper.showDeleteSummaryNotification(this@ConfirmDeleteActivity, totalDeleted)
             
             // 关闭所有Activity，包括MainActivity，但不关闭后台服务
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {

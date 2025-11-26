@@ -25,7 +25,6 @@ import com.example.photosmanager.service.ScreenMonitorService
 import com.example.photosmanager.ui.onboarding.OnboardingActivity
 import com.example.photosmanager.ui.settings.SettingsActivity
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
-import com.example.photosmanager.util.NotificationHelper
 import com.example.photosmanager.util.PermissionHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -63,9 +62,6 @@ class MainActivity : ComponentActivity() {
         try {
             android.util.Log.d("MainActivity", "初始化 PreferencesRepository")
             preferencesRepository = PreferencesRepository(this)
-            
-            android.util.Log.d("MainActivity", "创建通知渠道")
-            NotificationHelper.createNotificationChannel(this)
             
             android.util.Log.d("MainActivity", "设置 Compose 内容")
             enableEdgeToEdge()

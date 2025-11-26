@@ -180,14 +180,16 @@ fun FloatingWindowContent(
                                     currentPhoto.photoInfo.albumName,
                                     nearbyCount
                                 )
-                                // 去重：确保附近照片不与已有照片重复，但保留一份（队列中已有的）
+                                // 去重：确保附近照片不与已有照片重复
                                 val existingUris = photos.map { it.photoInfo.uri }.toSet()
                                 // 过滤掉重复的照片，只保留不在当前队列中的照片
                                 val uniqueNearby = nearby.filter { it.uri !in existingUris }
                                 if (uniqueNearby.isNotEmpty()) {
                                     val nearbySelections = uniqueNearby.map { PhotoSelection(it) }
-                                    // 将去重后的附近照片添加到当前照片之后
-                                    photos = photos.take(currentIndex + 1) + nearbySelections
+                                    // 将去重后的附近照片插入到当前照片之后，保留所有原有照片
+                                    val before = photos.take(currentIndex + 1)
+                                    val after = photos.drop(currentIndex + 1)
+                                    photos = before + nearbySelections + after
                                 }
                             }
                         }

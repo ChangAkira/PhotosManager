@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.data.repository.PreferencesRepository
+import com.example.photosmanager.service.BackgroundService
+import com.example.photosmanager.service.FloatingWindowService
+import com.example.photosmanager.service.ScreenMonitorService
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -139,10 +142,31 @@ fun SettingsScreen() {
                         Text("启用服务")
                         Switch(
                             checked = isServiceEnabled,
-                            onCheckedChange = {
-                                isServiceEnabled = it
+                            onCheckedChange = { enabled ->
+                                isServiceEnabled = enabled
                                 scope.launch {
-                                    preferencesRepository.setServiceEnabled(it)
+                                    preferencesRepository.setServiceEnabled(enabled)
+                                    // 根据开关状态启动或停止服务
+                                    if (enabled) {
+                                        // 启用服务：启动服务（需要检查权限，但这里只负责启动）
+                                        val intentBackground = Intent(context, BackgroundService::class.java)
+                                        val intentScreen = Intent(context, ScreenMonitorService::class.java)
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                            context.startForegroundService(intentBackground)
+                                            context.startForegroundService(intentScreen)
+                                        } else {
+                                            context.startService(intentBackground)
+                                            context.startService(intentScreen)
+                                        }
+                                    } else {
+                                        // 禁用服务：停止所有服务
+                                        val intentBackground = Intent(context, BackgroundService::class.java)
+                                        val intentScreen = Intent(context, ScreenMonitorService::class.java)
+                                        val intentFloating = Intent(context, FloatingWindowService::class.java)
+                                        context.stopService(intentBackground)
+                                        context.stopService(intentScreen)
+                                        context.stopService(intentFloating)
+                                    }
                                 }
                             }
                         )
