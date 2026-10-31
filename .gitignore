@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# 本地签名材料，切勿提交
+keystore.properties
+keystore/
+*.jks
+*.keystore
