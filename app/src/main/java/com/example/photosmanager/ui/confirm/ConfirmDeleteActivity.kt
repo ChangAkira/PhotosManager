@@ -132,16 +132,12 @@ class ConfirmDeleteActivity : ComponentActivity() {
                 reviewRepository.release(failed)
             }
 
-            // 关闭所有Activity，包括MainActivity，但不关闭后台服务
+            // 只关掉确认页自己。
+            // 以前这里是 finishAffinity() 再主动发一个 CATEGORY_HOME 的 Intent，
+            // 等于删完强行把用户丢回桌面。但用户是从悬浮窗进来的，
+            // 背后还停在他刚才在看的那个应用上，finish() 之后系统会自然回到那个界面。
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                // 关闭当前Activity和所有相关Activity
-                finishAffinity()
-                // 返回到桌面
-                android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-                    addCategory(android.content.Intent.CATEGORY_HOME)
-                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                    startActivity(this)
-                }
+                finish()
             }
         }
     }

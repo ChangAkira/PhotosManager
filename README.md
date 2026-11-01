@@ -4,7 +4,7 @@
   <p>把每次解锁手机的碎片时间，变成清理相册的时间。</p>
   <p>
     <img alt="platform" src="https://img.shields.io/badge/Android-7.0%2B-green"/>
-    <img alt="release" src="https://img.shields.io/badge/release-v1.3-blue"/>
+    <img alt="release" src="https://img.shields.io/badge/release-v1.4-blue"/>
     <img alt="lang" src="https://img.shields.io/badge/Kotlin-2.0.21-orange"/>
     <img alt="offline" src="https://img.shields.io/badge/联网-不需要-informational"/>
   </p>
@@ -30,12 +30,20 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 5. 左右滑动切换照片（滑动超过屏宽 10% 生效）。
 6. 一轮结束后进入**确认删除**页，缩略图逐张列出，可以反选取消——取消勾选的照片不会被删除，也会退回待整理池子。
 7. 点确认后才真正删除。Android 11 及以上走系统原生的 `MediaStore.createDeleteRequest()`，你会再看到一次系统级确认框——应用绝不会静默删掉任何一张照片。
+8. 删除完成后确认页自己关掉，系统回到**你刚才正在看的那个界面**，而不是被丢回桌面。整个流程里唯一真正抢占屏幕的是确认页和系统的删除授权框，用完即还。
 
 中途熄屏、按关闭键、甚至应用被系统回收都没关系：**本轮队列、看到第几张、哪些已经标记待删都会保留**，下次亮屏从断点继续。一轮走完（最后一张做出判断）之后才会重新抽取。
 
 ### 不会重复推同一张照片
 
-每轮抽取会**排除已经做过判断的照片**，所以不会出现"翻来覆去就是那几张"。等你把选中的相册完整过一遍，程序会自动开始第二轮循环。删除失败、或者在确认页被取消勾选的照片会退回待整理池子，下次还会再见到它们——它们其实还没被处理。
+每轮抽取会**排除已经做过判断的照片**，所以不会出现"翻来覆去就是那几张"。删除失败、或者在确认页被取消勾选的照片会退回待整理池子，下次还会再见到它们——它们其实还没被处理。
+
+等你把选中的相册完整过一遍，悬浮窗会停在**完成页**："这一批照片全部判断完了"，并给出两个选择：
+
+- **去设置** —— 直接打开设置页，由你决定是关掉服务还是换相册；
+- **清空判断记录，重新整理一轮** —— 显式开始第二轮。
+
+程序不会自己悄悄开新一轮，因为那意味着把同一批照片重新塞给你一遍，而不告诉你为什么又在见到它们。完成页会在之后每次亮屏时继续出现，直到你去设置里关掉服务、换相册，或者显式重开一轮。
 
 > **关于"附近"**：这里的"附近"不是地理位置，而是同一相册里按添加时间排序的位置邻近。连拍、同一场景的重复照片往往紧挨着，一张是废片，旁边几张大概率也是。数量默认 10 张，可在设置里调。
 
@@ -50,7 +58,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 ## 安装
 
-到 [Releases](../../releases) 下载 `PhotosManager-v1.3.apk`，安装时系统会提示"未知来源应用"，允许即可。
+到 [Releases](../../releases) 下载 `PhotosManager-v1.4.apk`，安装时系统会提示"未知来源应用"，允许即可。
 
 覆盖升级要求签名一致，本仓库发布的 APK 从 v1.1 起使用同一把签名密钥（见文末）。
 
@@ -81,8 +89,8 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 诚实列一下当前版本的不足，都在代码里可查证：
 
-- **整理进度没有手动重置入口**：判断过的照片记录在本地，想立刻从头再来只能清除应用数据。
 - **同名相册仍会互相干扰**：设置里的相册选择按显示名（`BUCKET_DISPLAY_NAME`）匹配，两个不同目录同名时会被并成一个相册处理。"附近"已经改成按目录 ID 取邻居，不受这个问题影响。
+- **完成页没有"暂时别弹了"**：相册全部判断完之后，每次亮屏都会看到完成页，直到你去设置里关掉服务、换相册，或者显式重开一轮。
 - **应用内没有回收站**：删除即从媒体库移除，只能依赖系统相册自带的"最近删除"。
 - **三条常驻通知无法关闭**（屏幕监听 / 悬浮窗 / 后台服务各一条）。
 - **大相册一次性全量载入内存**，几万张照片时会有明显延迟。
@@ -141,7 +149,7 @@ app/src/main/java/com/example/photosmanager/
 
 ## English summary
 
-PhotosManager turns the seconds you spend unlocking your phone into album cleanup. Once the service is enabled, every screen wake pops up a floating card over the lock screen area showing a handful of random photos from the albums you picked. Swipe through with one tap each: keep, mark for deletion, or pull in neighbouring shots (burst photos usually sit next to other junk). At the end of the round you review the marked list and confirm — on Android 11+ the actual deletion goes through the system `MediaStore.createDeleteRequest()` dialog, so nothing is ever removed silently.
+PhotosManager turns the seconds you spend unlocking your phone into album cleanup. Once the service is enabled, every screen wake pops up a floating card over the lock screen area showing a handful of random photos from the albums you picked. Swipe through with one tap each: keep, mark for deletion, or pull in neighbouring shots (burst photos usually sit next to other junk). At the end of the round you review the marked list and confirm — on Android 11+ the actual deletion goes through the system `MediaStore.createDeleteRequest()` dialog, so nothing is ever removed silently. Once the confirm screen is done it returns you to whatever app you were looking at, not to the home screen, and when you have been through every photo in the selected albums the card shows an explicit "all done" page instead of quietly starting over.
 
 No network access, no accounts, no analytics: photos, settings and deletion history stay on the device. Requires the overlay permission and runs foreground services to catch screen-on broadcasts, which is why there are persistent notifications.
 
