@@ -4,7 +4,7 @@
   <p>把每次解锁手机的碎片时间，变成清理相册的时间。</p>
   <p>
     <img alt="platform" src="https://img.shields.io/badge/Android-7.0%2B-green"/>
-    <img alt="release" src="https://img.shields.io/badge/release-v1.6-blue"/>
+    <img alt="release" src="https://img.shields.io/badge/release-v1.7-blue"/>
     <img alt="lang" src="https://img.shields.io/badge/Kotlin-2.0.21-orange"/>
     <img alt="offline" src="https://img.shields.io/badge/联网-不需要-informational"/>
   </p>
@@ -61,7 +61,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 ## 安装
 
-到 [Releases](../../releases) 下载 `PhotosManager-v1.6.apk`，安装时系统会提示"未知来源应用"，允许即可。
+到 [Releases](../../releases) 下载 `PhotosManager-v1.7.apk`，安装时系统会提示"未知来源应用"，允许即可。
 
 覆盖升级要求签名一致，本仓库发布的 APK 从 v1.1 起使用同一把签名密钥（见文末）。
 
@@ -76,6 +76,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 | 通知（`POST_NOTIFICATIONS`） | 三个前台服务的常驻通知 | 必需（Android 13+） |
 | 前台服务 `specialUse` | 亮屏监听需要长期在后台运行 | 必需 |
 | `WAKE_LOCK` | `BackgroundService` 持有 partial wakelock 保活 | 必需 |
+| `VIBRATE` | 设置页旋钮切档时的那一下触感反馈 | 可选，只为手感；普通权限，安装时自动授予 |
 | 忽略电池优化 | 防止被系统杀掉 | 建议，不授权也能用，只是亮屏可能不弹 |
 | 自启动 / 后台活动（厂商 ROM） | 同上 | 建议 |
 

@@ -1,5 +1,12 @@
 package com.example.photosmanager.ui.settings
 
+import android.content.Context
+import android.os.Build
+import android.os.SystemClock
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -11,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -29,10 +38,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -85,8 +93,11 @@ fun DetentDial(
     require(presets.size >= 2) { "DetentDial 至少需要两个档位" }
 
     val density = LocalDensity.current
-    val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
     var index by remember(presets) { mutableIntStateOf(nearestIndex(value, presets)) }
+    var lastTickAt by remember { mutableLongStateOf(0L) }
+    // 系统把"触摸反馈"关掉时不震动，界面上要说明为什么没反应，否则只会让人觉得是控件坏了
+    val hapticsBlocked = remember(context) { !systemTouchFeedbackEnabled(context) }
 
     // 外部改了 value（比如重新进设置页）时跟着归位
     LaunchedEffect(value, presets) {
@@ -97,7 +108,12 @@ fun DetentDial(
         if (target !in presets.indices) return
         if (target == index) return
         index = target
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        // 一次快速划过好几档时只响一下，不然变成持续的嗡嗡声
+        val now = SystemClock.uptimeMillis()
+        if (now - lastTickAt > 25) {
+            lastTickAt = now
+            detentTick(context)
+        }
         onValueChange(presets[target])
     }
 
@@ -259,11 +275,61 @@ fun DetentDial(
                 )
             }
         }
+
+        if (hapticsBlocked) {
+            Text(
+                text = "系统触摸反馈已关闭，切档不会震动",
+                style = MaterialTheme.typography.labelSmall,
+                color = onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
     }
 }
 
 private fun nearestIndex(value: Int, presets: List<Int>): Int =
     presets.indices.minByOrNull { abs(presets[it] - value) } ?: 0
+
+/**
+ * 切档的那一下"咔"。
+ *
+ * 没用 Compose 的 LocalHapticFeedback：它把 LongPress 映射成系统的按键级轻触，
+ * 不少 ROM 上那一档强度几乎摸不出来。这里直接开一次短震动，时长和强度自己定。
+ * 但系统触摸反馈开关关掉时不响——那是用户自己的设置，应用不该绕过它。
+ * （读的是公开设置项 HAPTIC_FEEDBACK_ENABLED；VibratorManager.areEnabledForUsage 是系统 API，三方应用拿不到）
+ */
+private fun detentTick(context: Context) {
+    if (!systemTouchFeedbackEnabled(context)) return
+    val vibrator = resolveVibrator(context) ?: return
+    if (!vibrator.hasVibrator()) return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val amplitude = if (vibrator.hasAmplitudeControl()) 180 else VibrationEffect.DEFAULT_AMPLITUDE
+        vibrator.vibrate(VibrationEffect.createOneShot(28, amplitude))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(28)
+    }
+}
+
+private fun resolveVibrator(context: Context): Vibrator? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Vibrator::class.java)
+    }
+
+/** 系统的触摸反馈是否开着。拿不到服务时按"开着"处理，不要因为读不到就静默 */
+private fun systemTouchFeedbackEnabled(context: Context): Boolean =
+    try {
+        Settings.System.getInt(
+            context.contentResolver,
+            Settings.System.HAPTIC_FEEDBACK_ENABLED,
+            1
+        ) != 0
+    } catch (e: Exception) {
+        true
+    }
 
 private fun angleFor(index: Int, count: Int): Float =
     START_ANGLE + SWEEP_ANGLE * index / (count - 1)
