@@ -52,12 +52,17 @@
             android:label="引导"
             android:theme="@style/Theme.PHOTOSMANAGER" />
         
+        <!-- 确认删除页跑在独立的任务栈里（taskAffinity 与主应用不同，且不出现在最近任务里），
+             这样它 finish 之后系统会回到用户亮屏前正在看的应用，而不是应用主页或桌面。
+             launchMode 用 standard：每次从悬浮窗进来都是一个全新实例、全新的待删列表。 -->
         <activity
             android:name=".ui.confirm.ConfirmDeleteActivity"
             android:exported="false"
             android:label="确认删除"
             android:theme="@style/Theme.PHOTOSMANAGER"
-            android:launchMode="singleTop" />
+            android:taskAffinity="com.example.photosmanager.confirm"
+            android:excludeFromRecents="true"
+            android:launchMode="standard" />
         
         <!-- 屏幕监听服务 -->
         <service

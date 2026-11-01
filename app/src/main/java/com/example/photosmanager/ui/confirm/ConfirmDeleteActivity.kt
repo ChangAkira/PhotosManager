@@ -49,7 +49,7 @@ class ConfirmDeleteActivity : ComponentActivity() {
                     onCancel = {
                         // 整批作废：这些照片其实没删掉，退回池子，之后还会再推
                         reviewRepository.releaseAsync(requestedPhotos)
-                        finish()
+                        finishAndRemoveTask()
                     }
                 )
             }
@@ -68,7 +68,7 @@ class ConfirmDeleteActivity : ComponentActivity() {
                 // 用户拒绝删除，整批都没删成
                 android.util.Log.w("ConfirmDeleteActivity", "用户拒绝删除权限")
                 reviewRepository.releaseAsync(requestedPhotos)
-                finish()
+                finishAndRemoveTask()
             }
         }
     }
@@ -80,7 +80,7 @@ class ConfirmDeleteActivity : ComponentActivity() {
         reviewRepository.releaseAsync(unchecked)
 
         if (photos.isEmpty()) {
-            finish()
+            finishAndRemoveTask()
             return
         }
 
@@ -132,12 +132,13 @@ class ConfirmDeleteActivity : ComponentActivity() {
                 reviewRepository.release(failed)
             }
 
-            // 只关掉确认页自己。
+            // 只关掉确认页自己，并把它那个独立任务栈一并移除（这个栈不出现在最近任务里，
+            // 光 finish() 万一被用户中途 Home 掉就会留下一个找不回来的空栈）。
             // 以前这里是 finishAffinity() 再主动发一个 CATEGORY_HOME 的 Intent，
             // 等于删完强行把用户丢回桌面。但用户是从悬浮窗进来的，
-            // 背后还停在他刚才在看的那个应用上，finish() 之后系统会自然回到那个界面。
+            // 背后还停在他刚才在看的那个应用上，关掉之后系统会自然回到那个界面。
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                finish()
+                finishAndRemoveTask()
             }
         }
     }

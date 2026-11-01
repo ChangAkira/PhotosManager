@@ -199,7 +199,12 @@ class FloatingWindowManager(private val context: Context) {
     private fun showConfirmDeleteActivity(photosToDelete: List<String>) {
         val intent = Intent(context, ConfirmDeleteActivity::class.java).apply {
             putStringArrayListExtra("photos_to_delete", ArrayList(photosToDelete))
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // NEW_TASK + MULTIPLE_TASK，配合清单里单独的 taskAffinity：
+            // 确认页必须待在自己的任务栈里。跟 MainActivity 共用默认 affinity 时，
+            // 它会被压进应用已有的那个栈，关掉之后露出底下的主页，
+            // 而不是回到用户亮屏前正在看的 QQ、浏览器之类。
+            // MULTIPLE_TASK 同时保证每轮都是全新的实例，不会复用到上一轮遗留的待删列表。
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
         }
         context.startActivity(intent)
     }

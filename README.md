@@ -4,7 +4,7 @@
   <p>把每次解锁手机的碎片时间，变成清理相册的时间。</p>
   <p>
     <img alt="platform" src="https://img.shields.io/badge/Android-7.0%2B-green"/>
-    <img alt="release" src="https://img.shields.io/badge/release-v1.4-blue"/>
+    <img alt="release" src="https://img.shields.io/badge/release-v1.5-blue"/>
     <img alt="lang" src="https://img.shields.io/badge/Kotlin-2.0.21-orange"/>
     <img alt="offline" src="https://img.shields.io/badge/联网-不需要-informational"/>
   </p>
@@ -30,7 +30,8 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 5. 左右滑动切换照片（滑动超过屏宽 10% 生效）。
 6. 一轮结束后进入**确认删除**页，缩略图逐张列出，可以反选取消——取消勾选的照片不会被删除，也会退回待整理池子。
 7. 点确认后才真正删除。Android 11 及以上走系统原生的 `MediaStore.createDeleteRequest()`，你会再看到一次系统级确认框——应用绝不会静默删掉任何一张照片。
-8. 删除完成后确认页自己关掉，系统回到**你刚才正在看的那个界面**，而不是被丢回桌面。整个流程里唯一真正抢占屏幕的是确认页和系统的删除授权框，用完即还。
+8. 删除完成后确认页自己关掉，系统回到**你刚才正在看的那个界面**，而不是被丢回桌面，也不会露出本应用的主页。这一步靠的是任务栈：确认页跑在自己的栈里（`taskAffinity` 与主应用不同、不出现在最近任务里），关掉时整栈移除，底下才是用户亮屏前那个应用。
+9. 注意区分：**完成页上的「去设置」**是把你带进应用自己的任务栈（会先收起悬浮窗），所以从设置页按返回会落回应用主页——那是你主动选择进应用的；只有确认删除这条路径承诺"用完即还"。
 
 中途熄屏、按关闭键、甚至应用被系统回收都没关系：**本轮队列、看到第几张、哪些已经标记待删都会保留**，下次亮屏从断点继续。一轮走完（最后一张做出判断）之后才会重新抽取。
 
@@ -58,7 +59,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 ## 安装
 
-到 [Releases](../../releases) 下载 `PhotosManager-v1.4.apk`，安装时系统会提示"未知来源应用"，允许即可。
+到 [Releases](../../releases) 下载 `PhotosManager-v1.5.apk`，安装时系统会提示"未知来源应用"，允许即可。
 
 覆盖升级要求签名一致，本仓库发布的 APK 从 v1.1 起使用同一把签名密钥（见文末）。
 
