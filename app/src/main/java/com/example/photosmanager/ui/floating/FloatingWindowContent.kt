@@ -303,10 +303,14 @@ fun PhotoViewerContent(
                     }
                 }
         ) {
-            Column(
+            // 图片容器：Box + verticalScroll 让横向图占满可用宽度、纵向长图仍可滚动。
+            // verticalScroll 会把最大高度放开为无限，容器高度取 max(可视高度, 图片高度)，
+            // 因此比窗口矮的图片会被居中，比窗口高的图片从头开始滚动、顶部不会被裁掉。
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState)
+                    .verticalScroll(scrollState),
+                contentAlignment = Alignment.Center
             ) {
                 // 使用 Coil 加载图片，添加错误处理
                 val imageUri = try {
@@ -320,9 +324,7 @@ fun PhotoViewerContent(
                     AsyncImage(
                         model = imageUri,
                         contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth(0.85f)
-                            .align(Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth(),
                         contentScale = ContentScale.Fit,
                         onError = {
                             android.util.Log.e("PhotoViewerContent", "图片加载失败: $imageUri")
@@ -331,10 +333,7 @@ fun PhotoViewerContent(
                 } else {
                     Text(
                         text = "无法加载图片",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.CenterHorizontally)
-                            .padding(16.dp),
+                        modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
