@@ -4,7 +4,7 @@
   <p>把每次解锁手机的碎片时间，变成清理相册的时间。</p>
   <p>
     <img alt="platform" src="https://img.shields.io/badge/Android-7.0%2B-green"/>
-    <img alt="release" src="https://img.shields.io/badge/release-v1.2-blue"/>
+    <img alt="release" src="https://img.shields.io/badge/release-v1.3-blue"/>
     <img alt="lang" src="https://img.shields.io/badge/Kotlin-2.0.21-orange"/>
     <img alt="offline" src="https://img.shields.io/badge/联网-不需要-informational"/>
   </p>
@@ -50,7 +50,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 ## 安装
 
-到 [Releases](../../releases) 下载 `PhotosManager-v1.2.apk`，安装时系统会提示"未知来源应用"，允许即可。
+到 [Releases](../../releases) 下载 `PhotosManager-v1.3.apk`，安装时系统会提示"未知来源应用"，允许即可。
 
 覆盖升级要求签名一致，本仓库发布的 APK 从 v1.1 起使用同一把签名密钥（见文末）。
 
