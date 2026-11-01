@@ -6,7 +6,6 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.provider.Settings
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -96,8 +94,6 @@ fun DetentDial(
     val context = LocalContext.current
     var index by remember(presets) { mutableIntStateOf(nearestIndex(value, presets)) }
     var lastTickAt by remember { mutableLongStateOf(0L) }
-    // 系统把"触摸反馈"关掉时不震动，界面上要说明为什么没反应，否则只会让人觉得是控件坏了
-    val hapticsBlocked = remember(context) { !systemTouchFeedbackEnabled(context) }
 
     // 外部改了 value（比如重新进设置页）时跟着归位
     LaunchedEffect(value, presets) {
@@ -275,15 +271,6 @@ fun DetentDial(
                 )
             }
         }
-
-        if (hapticsBlocked) {
-            Text(
-                text = "系统触摸反馈已关闭，切档不会震动",
-                style = MaterialTheme.typography.labelSmall,
-                color = onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = 6.dp)
-            )
-        }
     }
 }
 
@@ -295,11 +282,10 @@ private fun nearestIndex(value: Int, presets: List<Int>): Int =
  *
  * 没用 Compose 的 LocalHapticFeedback：它把 LongPress 映射成系统的按键级轻触，
  * 不少 ROM 上那一档强度几乎摸不出来。这里直接开一次短震动，时长和强度自己定。
- * 但系统触摸反馈开关关掉时不响——那是用户自己的设置，应用不该绕过它。
- * （读的是公开设置项 HAPTIC_FEEDBACK_ENABLED；VibratorManager.areEnabledForUsage 是系统 API，三方应用拿不到）
+ * 也刻意不去读系统的"触摸反馈"开关：用户关掉它通常是不想让全局动作都跟着震，
+ * 不等于不许应用给自己的一处交互加反馈。
  */
 private fun detentTick(context: Context) {
-    if (!systemTouchFeedbackEnabled(context)) return
     val vibrator = resolveVibrator(context) ?: return
     if (!vibrator.hasVibrator()) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -317,18 +303,6 @@ private fun resolveVibrator(context: Context): Vibrator? =
     } else {
         @Suppress("DEPRECATION")
         context.getSystemService(Vibrator::class.java)
-    }
-
-/** 系统的触摸反馈是否开着。拿不到服务时按"开着"处理，不要因为读不到就静默 */
-private fun systemTouchFeedbackEnabled(context: Context): Boolean =
-    try {
-        Settings.System.getInt(
-            context.contentResolver,
-            Settings.System.HAPTIC_FEEDBACK_ENABLED,
-            1
-        ) != 0
-    } catch (e: Exception) {
-        true
     }
 
 private fun angleFor(index: Int, count: Int): Float =
