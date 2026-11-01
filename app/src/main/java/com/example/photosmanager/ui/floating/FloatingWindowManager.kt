@@ -44,12 +44,12 @@ class FloatingWindowManager(private val context: Context) {
             }
             Log.d("FloatingWindowManager", "悬浮窗权限检查通过")
             
-            // 如果已经显示，先关闭
+            // 悬浮窗已经在显示就保持原样。
+            // 之前每次亮屏都先 dismiss 再重建，等于把这一轮未完成的队列清零，
+            // 用户熄屏又亮屏就得从头再来；顺带也去掉主线程上的 Thread.sleep(100)。
             if (composeView != null) {
-                Log.d("FloatingWindowManager", "检测到已有悬浮窗，先关闭")
-                dismiss()
-                // 等待一下确保完全关闭
-                Thread.sleep(100)
+                Log.d("FloatingWindowManager", "悬浮窗已在显示，保持当前进度")
+                return
             }
             
             windowManager = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager

@@ -30,6 +30,7 @@ import com.example.photosmanager.data.model.PhotoInfo
 import com.example.photosmanager.data.model.PhotoSelection
 import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.data.repository.PreferencesRepository
+import com.example.photosmanager.data.session.SessionStore
 import com.example.photosmanager.ui.theme.BeigeBackground
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -64,30 +65,36 @@ fun FloatingWindowContent(
             val albums = preferencesRepository.enabledAlbums.first()
             val sessionCount = preferencesRepository.photosPerSession.first()
             val nearby = preferencesRepository.nearbyPhotosCount.first()
-            
+
             enabledAlbums = albums
             photosPerSession = sessionCount
             nearbyCount = nearby
-            
+
+            // 先尝试续上未完成的一轮。悬浮窗每次亮屏都会重建，
+            // 如果只认 remember，用户中途熄屏就会丢掉进度和待删标记。
+            SessionStore.restoreIfNeeded(context)
+            if (SessionStore.isActive) {
+                photos = SessionStore.queue
+                currentIndex = SessionStore.currentIndex
+                isLoading = false
+                return@LaunchedEffect
+            }
+
             if (albums.isNotEmpty()) {
-                scope.launch {
-                    try {
-                        val allPhotos = photoRepository.getAllPhotosFromAlbums(albums)
-                        // 去重：使用Set确保URI不重复
-                        val uniquePhotos = allPhotos.distinctBy { it.uri }
-                        // 如果去重后照片数量不足，使用所有照片
-                        val photosToUse = if (uniquePhotos.size < sessionCount) {
-                            uniquePhotos
-                        } else {
-                            uniquePhotos.shuffled().take(sessionCount)
-                        }
-                        photos = photosToUse.map { PhotoSelection(it) }
-                        isLoading = false
-                    } catch (e: Exception) {
-                        android.util.Log.e("FloatingWindowContent", "加载照片失败", e)
-                        isLoading = false
-                    }
+                val allPhotos = photoRepository.getAllPhotosFromAlbums(albums)
+                // 去重：使用Set确保URI不重复
+                val uniquePhotos = allPhotos.distinctBy { it.uri }
+                // 如果去重后照片数量不足，使用所有照片
+                val photosToUse = if (uniquePhotos.size < sessionCount) {
+                    uniquePhotos
+                } else {
+                    uniquePhotos.shuffled().take(sessionCount)
                 }
+                val selections = photosToUse.map { PhotoSelection(it) }
+                SessionStore.startRound(context, selections)
+                photos = selections
+                currentIndex = 0
+                isLoading = false
             } else {
                 isLoading = false
             }
@@ -143,28 +150,19 @@ fun FloatingWindowContent(
                 albumName = currentPhoto.photoInfo.albumName,
                 swipeThreshold = swipeThreshold,
                 onAction = { action ->
-                    photos[currentIndex].action = action
+                    val position = currentIndex
                     when (action) {
-                        PhotoAction.KEEP -> {
-                            if (currentIndex < photos.size - 1) {
-                                currentIndex++
+                        PhotoAction.KEEP, PhotoAction.MARK_DELETE -> {
+                            SessionStore.setAction(context, position, action)
+                            if (position < photos.size - 1) {
+                                val next = position + 1
+                                currentIndex = next
+                                SessionStore.setIndex(context, next)
                             } else {
                                 val toDelete = photos.filter { it.action == PhotoAction.MARK_DELETE }
                                     .map { it.photoInfo.uri }
-                                // 如果没有照片需要删除，直接关闭悬浮窗
-                                if (toDelete.isEmpty()) {
-                                    onDismiss()
-                                } else {
-                                    onComplete(toDelete)
-                                }
-                            }
-                        }
-                        PhotoAction.MARK_DELETE -> {
-                            if (currentIndex < photos.size - 1) {
-                                currentIndex++
-                            } else {
-                                val toDelete = photos.filter { it.action == PhotoAction.MARK_DELETE }
-                                    .map { it.photoInfo.uri }
+                                // 本轮已经判完，会话收尾，下次亮屏重新抽一轮
+                                SessionStore.finish(context)
                                 // 如果没有照片需要删除，直接关闭悬浮窗
                                 if (toDelete.isEmpty()) {
                                     onDismiss()
@@ -183,13 +181,13 @@ fun FloatingWindowContent(
                                 // 去重：确保附近照片不与已有照片重复
                                 val existingUris = photos.map { it.photoInfo.uri }.toSet()
                                 // 过滤掉重复的照片，只保留不在当前队列中的照片
-                                val uniqueNearby = nearby.filter { it.uri !in existingUris }
+                                val uniqueNearby = nearby
+                                    .filter { it.uri !in existingUris }
+                                    .map { PhotoSelection(it) }
                                 if (uniqueNearby.isNotEmpty()) {
-                                    val nearbySelections = uniqueNearby.map { PhotoSelection(it) }
-                                    // 将去重后的附近照片插入到当前照片之后，保留所有原有照片
-                                    val before = photos.take(currentIndex + 1)
-                                    val after = photos.drop(currentIndex + 1)
-                                    photos = before + nearbySelections + after
+                                    // 插入到当前照片之后，进度位置不变
+                                    SessionStore.insertAfterCurrent(context, uniqueNearby)
+                                    photos = SessionStore.queue
                                 }
                             }
                         }
@@ -198,12 +196,16 @@ fun FloatingWindowContent(
                 onDismiss = onDismiss,
                 onSwipeLeft = {
                     if (currentIndex < photos.size - 1) {
-                        currentIndex++
+                        val next = currentIndex + 1
+                        currentIndex = next
+                        SessionStore.setIndex(context, next)
                     }
                 },
                 onSwipeRight = {
                     if (currentIndex > 0) {
-                        currentIndex--
+                        val previous = currentIndex - 1
+                        currentIndex = previous
+                        SessionStore.setIndex(context, previous)
                     }
                 },
                 currentIndex = currentIndex,

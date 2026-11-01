@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,7 @@ class PreferencesRepository(private val context: Context) {
         private val KEY_ENABLED_ALBUMS = stringSetPreferencesKey("enabled_albums")
         private val KEY_FIRST_LAUNCH = booleanPreferencesKey("first_launch")
         private val KEY_SERVICE_ENABLED = booleanPreferencesKey("service_enabled")
+        private val KEY_ACTIVE_SESSION = stringPreferencesKey("active_session")
         
         // 默认值
         const val DEFAULT_PHOTOS_PER_SESSION = 5
@@ -44,6 +46,11 @@ class PreferencesRepository(private val context: Context) {
 
     val isServiceEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_SERVICE_ENABLED] ?: false
+    }
+
+    /** 未完成的一轮询问，JSON 序列化后存这里，进程被杀也能恢复 */
+    val activeSessionJson: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_ACTIVE_SESSION]
     }
 
     suspend fun setPhotosPerSession(count: Int) {
@@ -73,6 +80,18 @@ class PreferencesRepository(private val context: Context) {
     suspend fun setServiceEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[KEY_SERVICE_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setActiveSession(json: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_ACTIVE_SESSION] = json
+        }
+    }
+
+    suspend fun clearActiveSession() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(KEY_ACTIVE_SESSION)
         }
     }
 }
