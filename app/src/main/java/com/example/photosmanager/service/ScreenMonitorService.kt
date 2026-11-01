@@ -92,7 +92,9 @@ class ScreenMonitorService : Service() {
                         try {
                             val isEnabled = preferencesRepository.isServiceEnabled.first()
                             android.util.Log.d("ScreenMonitorService", "服务启用状态: $isEnabled")
-                            if (isEnabled) {
+                            if (isEnabled && inDoNotDisturbNow()) {
+                                android.util.Log.d("ScreenMonitorService", "处于免打扰时段，跳过显示悬浮窗")
+                            } else if (isEnabled) {
                                 // 延迟一小段时间确保屏幕完全亮起
                                 kotlinx.coroutines.delay(300)
                                 android.util.Log.d("ScreenMonitorService", "启动悬浮窗服务")
@@ -118,6 +120,21 @@ class ScreenMonitorService : Service() {
         } catch (e: Exception) {
             android.util.Log.e("ScreenMonitorService", "注册屏幕监听失败", e)
         }
+    }
+
+    /**
+     * 免打扰时段内不弹悬浮窗。时段可能跨午夜（默认 22:00-07:00），
+     * 判断放在 PreferencesRepository 里，设置页要显示同样的区间。
+     */
+    private suspend fun inDoNotDisturbNow(): Boolean {
+        if (!preferencesRepository.dndEnabled.first()) return false
+        val now = java.util.Calendar.getInstance()
+        val nowMinute = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+        return preferencesRepository.inDoNotDisturb(
+            preferencesRepository.dndStartMinute.first(),
+            preferencesRepository.dndEndMinute.first(),
+            nowMinute
+        )
     }
 
     private fun startFloatingWindow() {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -47,6 +48,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -86,7 +88,8 @@ fun DetentDial(
     presets: List<Int>,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    unit: String = "张"
+    unit: String = "张",
+    maxSize: Dp = 190.dp
 ) {
     require(presets.size >= 2) { "DetentDial 至少需要两个档位" }
 
@@ -113,162 +116,172 @@ fun DetentDial(
         onValueChange(presets[target])
     }
 
-    val dialSize = 190.dp
-    val radiusPx = with(density) { (dialSize / 2 - 26.dp).toPx() }
-    val strokePx = with(density) { 9.dp.toPx() }
-    val dotPx = with(density) { 2.5.dp.toPx() }
-    val thumbPx = with(density) { 11.dp.toPx() }
-    val labelSize = with(density) { 40.dp.toPx() }
-    val labelGap = with(density) { 19.dp.toPx() }
-
     val primary = MaterialTheme.colorScheme.primary
     val trackColor = primary.copy(alpha = 0.15f)
     val dotColor = primary.copy(alpha = 0.35f)
     val onSurface = MaterialTheme.colorScheme.onSurface
 
-    Column(
+    // 两个旋钮并排放的时候分不到 190dp，所以按父级给到的宽度自适应，
+    // 圆环、刻度点、指针、数字标签全部按 dialSize 的比例算，缩小时不会挤到一起。
+    BoxWithConstraints(
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            color = onSurface
-        )
+        val dialSize = minOf(maxSize, maxWidth)
+        val radiusPx = with(density) { (dialSize * 0.363f).toPx() }
+        val strokePx = with(density) { (dialSize * 0.047f).toPx() }
+        val dotPx = with(density) { (dialSize * 0.013f).toPx() }
+        val thumbPx = with(density) { (dialSize * 0.058f).toPx() }
+        val labelGap = with(density) { (dialSize * 0.09f).toPx() }
+        val labelBox = dialSize * 0.19f
+        val labelBoxPx = with(density) { labelBox.toPx() }
+        val centerFontSize = (dialSize.value * 0.147f).sp
+        val detentFontSize = (dialSize.value * 0.068f).coerceIn(10.5f, 13.5f).sp
 
-        // 最高那一档的数字标签会画到 Box 上沿之外，留出发位
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-            modifier = Modifier
-                .size(dialSize)
-                // 不做 mergeDescendants：一旦合并，周围那些可点击的档位节点会被吞进父节点，
-                // 读屏就只能报一个数字、没法逐档选择。
-                .semantics {
-                    contentDescription = "$label，当前 ${presets[index]} $unit"
-                    progressBarRangeInfo = ProgressBarRangeInfo(
-                        current = index.toFloat(),
-                        range = 0f..(presets.size - 1).toFloat(),
-                        steps = presets.size - 1
-                    )
-                }
-                .pointerInput(presets) {
-                    detectTapGestures { position ->
-                        select(indexAt(position, centerOf(size.width, size.height), presets.size))
-                    }
-                }
-                .pointerInput(presets) {
-                    detectDragGestures(
-                        onDragStart = { position ->
-                            select(indexAt(position, centerOf(size.width, size.height), presets.size))
-                        },
-                        onDragEnd = { },
-                        onDragCancel = { }
-                    ) { change, _ ->
-                        select(indexAt(change.position, centerOf(size.width, size.height), presets.size))
-                    }
-                }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            val sizePx = with(density) { dialSize.toPx() }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                color = onSurface
+            )
 
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val c = Offset(size.width / 2f, size.height / 2f)
-                val arcSize = Size(radiusPx * 2f, radiusPx * 2f)
-                val arcTopLeft = Offset(c.x - radiusPx, c.y - radiusPx)
-                val currentAngle = angleFor(index, presets.size)
+            // 最高那一档的数字标签会画到 Box 上沿之外，留出发位
+            Spacer(modifier = Modifier.height(16.dp))
 
-                drawArc(
-                    color = trackColor,
-                    startAngle = START_ANGLE,
-                    sweepAngle = SWEEP_ANGLE,
-                    useCenter = false,
-                    topLeft = arcTopLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
-                )
-                val progressSweep = currentAngle - START_ANGLE
-                if (progressSweep > 0f) {
+            Box(
+                modifier = Modifier
+                    .size(dialSize)
+                    // 不做 mergeDescendants：一旦合并，周围那些可点击的档位节点会被吞进父节点，
+                    // 读屏就只能报一个数字、没法逐档选择。
+                    .semantics {
+                        contentDescription = "$label，当前 ${presets[index]} $unit"
+                        progressBarRangeInfo = ProgressBarRangeInfo(
+                            current = index.toFloat(),
+                            range = 0f..(presets.size - 1).toFloat(),
+                            steps = presets.size - 1
+                        )
+                    }
+                    .pointerInput(presets) {
+                        detectTapGestures { position ->
+                            select(indexAt(position, centerOf(size.width, size.height), presets.size))
+                        }
+                    }
+                    .pointerInput(presets) {
+                        detectDragGestures(
+                            onDragStart = { position ->
+                                select(indexAt(position, centerOf(size.width, size.height), presets.size))
+                            },
+                            onDragEnd = { },
+                            onDragCancel = { }
+                        ) { change, _ ->
+                            select(indexAt(change.position, centerOf(size.width, size.height), presets.size))
+                        }
+                    }
+            ) {
+                val sizePx = with(density) { dialSize.toPx() }
+
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val c = Offset(size.width / 2f, size.height / 2f)
+                    val arcSize = Size(radiusPx * 2f, radiusPx * 2f)
+                    val arcTopLeft = Offset(c.x - radiusPx, c.y - radiusPx)
+                    val currentAngle = angleFor(index, presets.size)
+
                     drawArc(
-                        color = primary,
+                        color = trackColor,
                         startAngle = START_ANGLE,
-                        sweepAngle = progressSweep,
+                        sweepAngle = SWEEP_ANGLE,
                         useCenter = false,
                         topLeft = arcTopLeft,
                         size = arcSize,
                         style = Stroke(width = strokePx, cap = StrokeCap.Round)
                     )
+                    val progressSweep = currentAngle - START_ANGLE
+                    if (progressSweep > 0f) {
+                        drawArc(
+                            color = primary,
+                            startAngle = START_ANGLE,
+                            sweepAngle = progressSweep,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                        )
+                    }
+                    presets.indices.forEach { i ->
+                        // 当前档不画小刻度，由指针大圆点代替
+                        if (i != index) {
+                            drawCircle(
+                                color = dotColor,
+                                radius = dotPx,
+                                center = polar(c, radiusPx, angleFor(i, presets.size))
+                            )
+                        }
+                    }
+                    drawCircle(
+                        color = primary,
+                        radius = thumbPx,
+                        center = polar(c, radiusPx, currentAngle)
+                    )
                 }
-                presets.indices.forEach { i ->
-                    // 当前档不画小刻度，由指针大圆点代替
-                    if (i != index) {
-                        drawCircle(
-                            color = dotColor,
-                            radius = dotPx,
-                            center = polar(c, radiusPx, angleFor(i, presets.size))
+
+                // 档位数字：既是刻度标签，也是可点击的选择项
+                presets.forEachIndexed { i, preset ->
+                    val anchor = polar(
+                        Offset(sizePx / 2f, sizePx / 2f),
+                        radiusPx + labelGap,
+                        angleFor(i, presets.size)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset {
+                                IntOffset(
+                                    (anchor.x - labelBoxPx / 2f).roundToInt(),
+                                    (anchor.y - labelBoxPx / 2f).roundToInt()
+                                )
+                            }
+                            .size(labelBox)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { select(i) }
+                            .semantics {
+                                role = Role.RadioButton
+                                selected = i == index
+                                contentDescription = "$preset $unit"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = preset.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (i == index) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = detentFontSize,
+                            color = if (i == index) primary else onSurface.copy(alpha = 0.55f)
                         )
                     }
                 }
-                drawCircle(
-                    color = primary,
-                    radius = thumbPx,
-                    center = polar(c, radiusPx, currentAngle)
-                )
-            }
 
-            // 档位数字：既是刻度标签，也是可点击的选择项
-            presets.forEachIndexed { i, preset ->
-                val anchor = polar(
-                    Offset(sizePx / 2f, sizePx / 2f),
-                    radiusPx + labelGap,
-                    angleFor(i, presets.size)
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset {
-                            IntOffset(
-                                (anchor.x - labelSize / 2f).roundToInt(),
-                                (anchor.y - labelSize / 2f).roundToInt()
-                            )
-                        }
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { select(i) }
-                        .semantics {
-                            role = Role.RadioButton
-                            selected = i == index
-                            contentDescription = "$preset $unit"
-                        },
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = preset.toString(),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (i == index) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 13.sp,
-                        color = if (i == index) primary else onSurface.copy(alpha = 0.55f)
+                        text = presets[index].toString(),
+                        fontSize = centerFontSize,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = primary
+                    )
+                    Text(
+                        text = unit,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = onSurface.copy(alpha = 0.6f)
                     )
                 }
-            }
-
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = presets[index].toString(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = primary
-                )
-                Text(
-                    text = unit,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = onSurface.copy(alpha = 0.6f)
-                )
             }
         }
     }

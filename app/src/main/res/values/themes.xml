@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.PHOTOSMANAGER" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 深浅色跟着系统：Activity 还没画第一帧时露出的是 windowBackground，
+         写死米白的话，深色模式下每次进设置页都会先闪一块白板。 -->
+    <style name="Theme.PHOTOSMANAGER" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>

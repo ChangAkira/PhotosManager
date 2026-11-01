@@ -33,7 +33,6 @@ import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.data.repository.ReviewRepository
 import com.example.photosmanager.data.session.SessionStore
 import com.example.photosmanager.ui.settings.SettingsActivity
-import com.example.photosmanager.ui.theme.BeigeBackground
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -131,7 +130,8 @@ fun FloatingWindowContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BeigeBackground)
+            // 悬浮窗是系统深色模式下用户看到的最大一块面，跟着配色走而不是写死米白
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (isLoading) {
             CircularProgressIndicator(

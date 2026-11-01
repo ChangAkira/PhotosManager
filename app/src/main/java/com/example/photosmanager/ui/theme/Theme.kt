@@ -1,52 +1,20 @@
 package com.example.photosmanager.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = MutedPrimary,
-    secondary = MutedSecondary,
-    tertiary = MutedTertiary,
-    background = DarkBackground,
-    surface = DarkSurface,
-    onBackground = DarkOnSurface,
-    onSurface = DarkOnSurface,
-    error = MutedError,
-    errorContainer = MutedError.copy(alpha = 0.2f),
-    primaryContainer = MutedPrimary.copy(alpha = 0.2f),
-    secondaryContainer = MutedSecondary.copy(alpha = 0.2f)
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = MutedPrimary,
-    secondary = MutedSecondary,
-    tertiary = MutedTertiary,
-    background = BeigeBackground,
-    surface = BeigeSurface,
-    onBackground = MutedOnSurface,
-    onSurface = MutedOnSurface,
-    error = MutedError,
-    errorContainer = MutedError.copy(alpha = 0.2f),
-    primaryContainer = MutedPrimary.copy(alpha = 0.15f),
-    secondaryContainer = MutedSecondary.copy(alpha = 0.15f)
-)
-
+/**
+ * 深浅色跟着系统设置走，不在应用里单独放一个开关：
+ * 用户在系统里开了深色模式，应用就该是深色的，悬浮窗也一样，不然亮屏时突然一块白板更刺眼。
+ * 配色（米白/青灰/陶土/靛蓝/石墨）由 ThemeState 提供，它是可观察状态，设置页点一下就整体重绘。
+ */
 @Composable
 fun PHOTOSMANAGERTheme(
-    darkTheme: Boolean = false, // 默认使用浅色主题
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false, // 禁用动态颜色，使用自定义低饱和度配色
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val palette = ThemeState.palette
+    val colorScheme = if (isSystemInDarkTheme()) palette.dark else palette.light
 
     MaterialTheme(
         colorScheme = colorScheme,
