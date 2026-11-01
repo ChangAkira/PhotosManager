@@ -81,45 +81,39 @@ fun SettingsScreen() {
             
             item {
                 Card {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("每次显示照片数量")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Slider(
-                            value = photosPerSession.toFloat(),
-                            onValueChange = { newValue ->
-                                val intValue = newValue.toInt()
-                                photosPerSession = intValue
-                                scope.launch {
-                                    preferencesRepository.setPhotosPerSession(intValue)
-                                }
-                            },
-                            valueRange = 1f..20f,
-                            steps = 18
-                        )
-                        Text("${photosPerSession} 张")
-                    }
+                    DetentDial(
+                        label = "每次显示照片数量",
+                        value = photosPerSession,
+                        presets = SESSION_PRESETS,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        onValueChange = { newValue ->
+                            photosPerSession = newValue
+                            scope.launch {
+                                preferencesRepository.setPhotosPerSession(newValue)
+                            }
+                        }
+                    )
                 }
             }
 
             item {
                 Card {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("附近照片数量")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Slider(
-                            value = nearbyCount.toFloat(),
-                            onValueChange = { newValue ->
-                                val intValue = newValue.toInt()
-                                nearbyCount = intValue
-                                scope.launch {
-                                    preferencesRepository.setNearbyPhotosCount(intValue)
-                                }
-                            },
-                            valueRange = 5f..30f,
-                            steps = 24
-                        )
-                        Text("${nearbyCount} 张")
-                    }
+                    DetentDial(
+                        label = "附近照片数量",
+                        value = nearbyCount,
+                        presets = NEARBY_PRESETS,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        onValueChange = { newValue ->
+                            nearbyCount = newValue
+                            scope.launch {
+                                preferencesRepository.setNearbyPhotosCount(newValue)
+                            }
+                        }
+                    )
                 }
             }
 
