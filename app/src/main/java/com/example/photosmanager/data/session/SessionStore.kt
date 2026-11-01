@@ -151,7 +151,9 @@ object SessionStore {
                     .put("width", info.width)
                     .put("height", info.height)
                     .put("displayName", info.displayName)
+                    .put("bucketId", info.bucketId)
                     .put("action", selection.action.name)
+                    .put("fromNearby", selection.fromNearby)
             )
         }
         return JSONObject()
@@ -188,11 +190,18 @@ object SessionStore {
                     size = item.optLong("size"),
                     width = item.optInt("width"),
                     height = item.optInt("height"),
-                    displayName = item.optString("displayName", "")
+                    displayName = item.optString("displayName", ""),
+                    bucketId = item.optLong("bucketId", -1L)
                 )
                 val action = runCatching { PhotoAction.valueOf(item.optString("action")) }
                     .getOrDefault(PhotoAction.KEEP)
-                selections.add(PhotoSelection(info, action))
+                selections.add(
+                    PhotoSelection(
+                        photoInfo = info,
+                        action = action,
+                        fromNearby = item.optBoolean("fromNearby", false)
+                    )
+                )
             }
             val position = root.optInt("index", 0).coerceIn(0, maxOf(0, selections.size - 1))
             selections to position

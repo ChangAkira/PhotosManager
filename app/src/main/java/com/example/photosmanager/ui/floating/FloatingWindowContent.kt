@@ -30,6 +30,7 @@ import com.example.photosmanager.data.model.PhotoInfo
 import com.example.photosmanager.data.model.PhotoSelection
 import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.data.repository.PreferencesRepository
+import com.example.photosmanager.data.repository.ReviewRepository
 import com.example.photosmanager.data.session.SessionStore
 import com.example.photosmanager.ui.theme.BeigeBackground
 import kotlinx.coroutines.flow.first
@@ -43,6 +44,7 @@ fun FloatingWindowContent(
     val context = LocalContext.current
     val photoRepository = remember { PhotoRepository(context) }
     val preferencesRepository = remember { PreferencesRepository(context) }
+    val reviewRepository = remember { ReviewRepository(context) }
     val scope = rememberCoroutineScope()
     
     // 获取屏幕宽度的像素值
@@ -84,11 +86,20 @@ fun FloatingWindowContent(
                 val allPhotos = photoRepository.getAllPhotosFromAlbums(albums)
                 // 去重：使用Set确保URI不重复
                 val uniquePhotos = allPhotos.distinctBy { it.uri }
-                // 如果去重后照片数量不足，使用所有照片
-                val photosToUse = if (uniquePhotos.size < sessionCount) {
+                // 已经判断过的照片不再重复推送，整池子过完才重新开始一轮
+                val reviewed = reviewRepository.getReviewedUris()
+                val eligible = uniquePhotos.filterNot { it.uri in reviewed }
+                val pool = if (eligible.isEmpty()) {
+                    reviewRepository.startNewCycle()
                     uniquePhotos
                 } else {
-                    uniquePhotos.shuffled().take(sessionCount)
+                    eligible
+                }
+                // 如果可用照片数量不足，使用所有照片
+                val photosToUse = if (pool.size < sessionCount) {
+                    pool
+                } else {
+                    pool.shuffled().take(sessionCount)
                 }
                 val selections = photosToUse.map { PhotoSelection(it) }
                 SessionStore.startRound(context, selections)
@@ -149,11 +160,14 @@ fun FloatingWindowContent(
                 photoSelection = currentPhoto,
                 albumName = currentPhoto.photoInfo.albumName,
                 swipeThreshold = swipeThreshold,
+                nearbyEnabled = !currentPhoto.fromNearby,
                 onAction = { action ->
                     val position = currentIndex
                     when (action) {
                         PhotoAction.KEEP, PhotoAction.MARK_DELETE -> {
                             SessionStore.setAction(context, position, action)
+                            // 记下这张已经判断过，后续轮次不再重复推送
+                            reviewRepository.markReviewedAsync(photos[position].photoInfo.uri)
                             if (position < photos.size - 1) {
                                 val next = position + 1
                                 currentIndex = next
@@ -175,15 +189,16 @@ fun FloatingWindowContent(
                             scope.launch {
                                 val nearby = photoRepository.getNearbyPhotos(
                                     currentPhoto.photoInfo,
-                                    currentPhoto.photoInfo.albumName,
                                     nearbyCount
                                 )
                                 // 去重：确保附近照片不与已有照片重复
                                 val existingUris = photos.map { it.photoInfo.uri }.toSet()
-                                // 过滤掉重复的照片，只保留不在当前队列中的照片
+                                // 过滤掉重复的照片，只保留不在当前队列中的照片。
+                                // 标记 fromNearby：插进来的照片不能再点「附近」，
+                                // 否则队列会被无限撑大。
                                 val uniqueNearby = nearby
                                     .filter { it.uri !in existingUris }
-                                    .map { PhotoSelection(it) }
+                                    .map { PhotoSelection(it, fromNearby = true) }
                                 if (uniqueNearby.isNotEmpty()) {
                                     // 插入到当前照片之后，进度位置不变
                                     SessionStore.insertAfterCurrent(context, uniqueNearby)
@@ -220,6 +235,7 @@ fun PhotoViewerContent(
     photoSelection: PhotoSelection,
     albumName: String,
     swipeThreshold: Float,
+    nearbyEnabled: Boolean,
     onAction: (PhotoAction) -> Unit,
     onDismiss: () -> Unit,
     onSwipeLeft: () -> Unit,
@@ -381,6 +397,7 @@ fun PhotoViewerContent(
 
             Button(
                 onClick = { onAction(PhotoAction.VIEW_NEARBY) },
+                enabled = nearbyEnabled,
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
             ) {
                 Text("附近")

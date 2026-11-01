@@ -12,28 +12,58 @@ import kotlinx.coroutines.withContext
 class PhotoRepository(private val context: Context) {
     private val database = AppDatabase.getDatabase(context)
 
-    suspend fun getAllPhotosFromAlbums(albumNames: Set<String>): List<PhotoInfo> = withContext(Dispatchers.IO) {
-        val photos = mutableListOf<PhotoInfo>()
-        
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_ADDED,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.WIDTH,
-            MediaStore.Images.Media.HEIGHT,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME
-        )
+    private val projection = arrayOf(
+        MediaStore.Images.Media._ID,
+        MediaStore.Images.Media.DISPLAY_NAME,
+        MediaStore.Images.Media.DATE_ADDED,
+        MediaStore.Images.Media.DATE_MODIFIED,
+        MediaStore.Images.Media.SIZE,
+        MediaStore.Images.Media.WIDTH,
+        MediaStore.Images.Media.HEIGHT,
+        MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+        MediaStore.Images.Media.BUCKET_ID
+    )
 
+    suspend fun getAllPhotosFromAlbums(albumNames: Set<String>): List<PhotoInfo> = withContext(Dispatchers.IO) {
         val selection = if (albumNames.isNotEmpty()) {
             "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} IN (${albumNames.joinToString(",") { "?" }})"
         } else {
             null
         }
+        queryPhotos(selection, albumNames.toTypedArray())
+    }
 
-        val selectionArgs = albumNames.toTypedArray()
+    /**
+     * 取同一目录内、按添加时间排序的邻居照片。
+     *
+     * 这里必须按 BUCKET_ID 而不是相册显示名来查：显示名可以重复
+     * （DCIM/Camera 和 Pictures/Camera 都叫 "Camera"），按名字查会把两个目录
+     * 的照片混在一起排序，给出的"附近"和用户正在看的这张毫无关系。
+     */
+    suspend fun getNearbyPhotos(
+        currentPhoto: PhotoInfo,
+        count: Int
+    ): List<PhotoInfo> = withContext(Dispatchers.IO) {
+        val (selection, selectionArgs) = if (currentPhoto.bucketId > 0L) {
+            "${MediaStore.Images.Media.BUCKET_ID} = ?" to arrayOf(currentPhoto.bucketId.toString())
+        } else {
+            // 旧版本会话里存的 PhotoInfo 没有 bucketId，退回按显示名查
+            "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?" to arrayOf(currentPhoto.albumName)
+        }
 
+        val allPhotos = queryPhotos(selection, selectionArgs)
+        val currentIndex = allPhotos.indexOfFirst { it.uri == currentPhoto.uri }
+
+        if (currentIndex == -1) return@withContext emptyList()
+
+        val startIndex = maxOf(0, currentIndex - count / 2)
+        val endIndex = minOf(allPhotos.size, startIndex + count)
+
+        allPhotos.subList(startIndex, endIndex)
+    }
+
+    private fun queryPhotos(selection: String?, selectionArgs: Array<String>?): List<PhotoInfo> {
+        val photos = mutableListOf<PhotoInfo>()
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         context.contentResolver.query(
@@ -51,6 +81,7 @@ class PhotoRepository(private val context: Context) {
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
             val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            val bucketIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -68,29 +99,14 @@ class PhotoRepository(private val context: Context) {
                         size = cursor.getLong(sizeColumn),
                         width = cursor.getInt(widthColumn),
                         height = cursor.getInt(heightColumn),
-                        displayName = cursor.getString(nameColumn) ?: ""
+                        displayName = cursor.getString(nameColumn) ?: "",
+                        bucketId = cursor.getLong(bucketIdColumn)
                     )
                 )
             }
         }
 
-        photos
-    }
-
-    suspend fun getNearbyPhotos(
-        currentPhoto: PhotoInfo,
-        albumName: String,
-        count: Int
-    ): List<PhotoInfo> = withContext(Dispatchers.IO) {
-        val allPhotos = getAllPhotosFromAlbums(setOf(albumName))
-        val currentIndex = allPhotos.indexOfFirst { it.uri == currentPhoto.uri }
-        
-        if (currentIndex == -1) return@withContext emptyList()
-
-        val startIndex = maxOf(0, currentIndex - count / 2)
-        val endIndex = minOf(allPhotos.size, startIndex + count)
-        
-        allPhotos.subList(startIndex, endIndex)
+        return photos
     }
 
     suspend fun getAllAlbumNames(): List<String> = withContext(Dispatchers.IO) {
