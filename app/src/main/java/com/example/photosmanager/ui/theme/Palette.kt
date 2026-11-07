@@ -15,9 +15,12 @@ import com.example.photosmanager.R
  * 暗色不单独作为开关暴露给用户，跟着系统的深色模式走，
  * 所以每个主题都必须成对准备，不然系统切到深色时只有背景变黑、控件还是亮色的。
  *
- * 色值与孪生项目 ScreenshotBye 的 res/values(-night)/colors_palettes.xml 一一对应：
- * 那边是 Views，只能把这些值写成 XML 主题，而这里就是那份表的源头，
- * 两边改一处要同步改另一处，否则"换主题"在两个应用里会长得不一样。
+ * 每套配色只负责「控件层」那 17 个角色：primary / secondary / tertiary / error 四条线
+ * 及各自的 on*、*Container，外加 inversePrimary。页面、卡片、文字、描边一律走下面那份
+ * 共用的中性色阶——这是刻意的：之前 34 个角色全按配色摊开，结果米白下正文是暖棕色、
+ * 靛蓝下是冷蓝色，换主题像换了字体颜色，而底色早就中性化了，文字没有理由还跟着走。
+ * 孪生项目 ScreenshotBye 的 res/values(-night)/colors_neutral.xml 是同一组数值，
+ * 两边改一处要同步改另一处。
  */
 class Palette(
     val id: String,
@@ -27,20 +30,166 @@ class Palette(
     val dark: ColorScheme
 )
 
-/*
- * 页面与卡片刻意不随配色变化：下面每套 scheme 里 background / surface / surfaceVariant /
- * surfaceContainer* 都是同一组中性值（亮 #F6F5F4 页面 + #EEEDEB 卡片，暗 #171718 + #2F2E30），
- * 主题颜色只作用于控件本身（按钮、旋钮、开关走 colorPrimary）。
- * 陶土配色的卡片不该是粉的，靛蓝配色的卡片不该是蓝的——对齐 ScreenshotBye 的
- * Widget.*.Card.Filled 与 page_background 做法，卡片一律用 PaletteCard 里的 surface。
- */
+/** 中性色阶：五套配色共用，深浅各一组。取值见 ScreenshotBye 的 colors_neutral.xml */
+private object Neutral {
+    // 亮色：文字、描边都不带色温，五套配色共用
+    val lightBackground = Color(0xFFF6F5F4)
+    val lightOnBackground = Color(0xFF474645)
+    val lightSurface = Color(0xFFEEEDEB)
+    val lightOnSurface = Color(0xFF474645)
+    val lightSurfaceVariant = Color(0xFFE1E0DE)
+    val lightOnSurfaceVariant = Color(0xFF656462)
+    val lightSurfaceContainerLowest = Color(0xFFFFFFFF)
+    val lightSurfaceContainerLow = Color(0xFFF6F5F4)
+    val lightSurfaceContainer = Color(0xFFF2F1F0)
+    val lightSurfaceContainerHigh = Color(0xFFEAE9E7)
+    val lightSurfaceContainerHighest = Color(0xFFE3E2E1)
+    val lightSurfaceBright = Color(0xFFF8F7F6)
+    val lightSurfaceDim = Color(0xFFDCDBD9)
+    val lightInverseSurface = Color(0xFF666361)
+    val lightInverseOnSurface = Color(0xFFFCFBFA)
+    val lightOutline = Color(0xFF9B9A97)
+    val lightOutlineVariant = Color(0xFFCAC9C6)
 
-/** 米白 */
+    // 暗色：同上，只是换一档亮度
+    val darkBackground = Color(0xFF171718)
+    val darkOnBackground = Color(0xFFE4E3E1)
+    val darkSurface = Color(0xFF2F2E30)
+    val darkOnSurface = Color(0xFFE4E3E1)
+    val darkSurfaceVariant = Color(0xFF2E2E31)
+    val darkOnSurfaceVariant = Color(0xFFC5C4C2)
+    val darkSurfaceContainerLowest = Color(0xFF0E0E0F)
+    val darkSurfaceContainerLow = Color(0xFF171718)
+    val darkSurfaceContainer = Color(0xFF1E1E20)
+    val darkSurfaceContainerHigh = Color(0xFF262628)
+    val darkSurfaceContainerHighest = Color(0xFF2F2E30)
+    val darkSurfaceBright = Color(0xFF232325)
+    val darkSurfaceDim = Color(0xFF131314)
+    val darkInverseSurface = Color(0xFFC5C5C4)
+    val darkInverseOnSurface = Color(0xFF151513)
+    val darkOutline = Color(0xFF71706E)
+    val darkOutlineVariant = Color(0xFF585857)
+}
+
+/**
+ * 配色只填控件层，中性层由 Neutral 统一提供。
+ * 参数顺序固定，新增配色时照抄一份调用即可，不需要再写一遍底色和文字色。
+ */
+private fun lightScheme(
+    primary: Color,
+    onPrimary: Color,
+    primaryContainer: Color,
+    onPrimaryContainer: Color,
+    secondary: Color,
+    onSecondary: Color,
+    secondaryContainer: Color,
+    onSecondaryContainer: Color,
+    tertiary: Color,
+    onTertiary: Color,
+    tertiaryContainer: Color,
+    onTertiaryContainer: Color,
+    error: Color,
+    onError: Color,
+    errorContainer: Color,
+    onErrorContainer: Color,
+    inversePrimary: Color
+): ColorScheme = lightColorScheme(
+    primary = primary,
+    onPrimary = onPrimary,
+    primaryContainer = primaryContainer,
+    onPrimaryContainer = onPrimaryContainer,
+    secondary = secondary,
+    onSecondary = onSecondary,
+    secondaryContainer = secondaryContainer,
+    onSecondaryContainer = onSecondaryContainer,
+    tertiary = tertiary,
+    onTertiary = onTertiary,
+    tertiaryContainer = tertiaryContainer,
+    onTertiaryContainer = onTertiaryContainer,
+    error = error,
+    onError = onError,
+    errorContainer = errorContainer,
+    onErrorContainer = onErrorContainer,
+    inversePrimary = inversePrimary,
+    background = Neutral.lightBackground,
+    onBackground = Neutral.lightOnBackground,
+    surface = Neutral.lightSurface,
+    onSurface = Neutral.lightOnSurface,
+    surfaceVariant = Neutral.lightSurfaceVariant,
+    onSurfaceVariant = Neutral.lightOnSurfaceVariant,
+    surfaceContainerLowest = Neutral.lightSurfaceContainerLowest,
+    surfaceContainerLow = Neutral.lightSurfaceContainerLow,
+    surfaceContainer = Neutral.lightSurfaceContainer,
+    surfaceContainerHigh = Neutral.lightSurfaceContainerHigh,
+    surfaceContainerHighest = Neutral.lightSurfaceContainerHighest,
+    surfaceBright = Neutral.lightSurfaceBright,
+    surfaceDim = Neutral.lightSurfaceDim,
+    inverseSurface = Neutral.lightInverseSurface,
+    inverseOnSurface = Neutral.lightInverseOnSurface,
+    outline = Neutral.lightOutline,
+    outlineVariant = Neutral.lightOutlineVariant,
+)
+
+private fun darkScheme(
+    primary: Color,
+    onPrimary: Color,
+    primaryContainer: Color,
+    onPrimaryContainer: Color,
+    secondary: Color,
+    onSecondary: Color,
+    secondaryContainer: Color,
+    onSecondaryContainer: Color,
+    tertiary: Color,
+    onTertiary: Color,
+    tertiaryContainer: Color,
+    onTertiaryContainer: Color,
+    error: Color,
+    onError: Color,
+    errorContainer: Color,
+    onErrorContainer: Color,
+    inversePrimary: Color
+): ColorScheme = darkColorScheme(
+    primary = primary,
+    onPrimary = onPrimary,
+    primaryContainer = primaryContainer,
+    onPrimaryContainer = onPrimaryContainer,
+    secondary = secondary,
+    onSecondary = onSecondary,
+    secondaryContainer = secondaryContainer,
+    onSecondaryContainer = onSecondaryContainer,
+    tertiary = tertiary,
+    onTertiary = onTertiary,
+    tertiaryContainer = tertiaryContainer,
+    onTertiaryContainer = onTertiaryContainer,
+    error = error,
+    onError = onError,
+    errorContainer = errorContainer,
+    onErrorContainer = onErrorContainer,
+    inversePrimary = inversePrimary,
+    background = Neutral.darkBackground,
+    onBackground = Neutral.darkOnBackground,
+    surface = Neutral.darkSurface,
+    onSurface = Neutral.darkOnSurface,
+    surfaceVariant = Neutral.darkSurfaceVariant,
+    onSurfaceVariant = Neutral.darkOnSurfaceVariant,
+    surfaceContainerLowest = Neutral.darkSurfaceContainerLowest,
+    surfaceContainerLow = Neutral.darkSurfaceContainerLow,
+    surfaceContainer = Neutral.darkSurfaceContainer,
+    surfaceContainerHigh = Neutral.darkSurfaceContainerHigh,
+    surfaceContainerHighest = Neutral.darkSurfaceContainerHighest,
+    surfaceBright = Neutral.darkSurfaceBright,
+    surfaceDim = Neutral.darkSurfaceDim,
+    inverseSurface = Neutral.darkInverseSurface,
+    inverseOnSurface = Neutral.darkInverseOnSurface,
+    outline = Neutral.darkOutline,
+    outlineVariant = Neutral.darkOutlineVariant,
+)
+
 private val WARM_BEIGE = Palette(
     id = "beige",
     nameRes = R.string.palette_beige,
     swatch = Color(0xFF8B7D6B),
-    light = lightColorScheme(
+    light = lightScheme(
         primary = Color(0xFF8B7D6B),
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFFEBE8E4),
@@ -57,26 +206,9 @@ private val WARM_BEIGE = Palette(
         onError = Color(0xFFFFFFFF),
         errorContainer = Color(0xFFF2ECE8),
         onErrorContainer = Color(0xFF816C61),
-        background = Color(0xFFF6F5F4),
-        onBackground = Color(0xFF5C5247),
-        surface = Color(0xFFEEEDEB),
-        onSurface = Color(0xFF5C5247),
-        surfaceVariant = Color(0xFFE1E0DE),
-        onSurfaceVariant = Color(0xFF6E6558),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF6F5F4),
-        surfaceContainer = Color(0xFFF2F1F0),
-        surfaceContainerHigh = Color(0xFFEAE9E7),
-        surfaceContainerHighest = Color(0xFFE3E2E1),
-        surfaceBright = Color(0xFFF8F7F6),
-        surfaceDim = Color(0xFFDCDBD9),
-        inverseSurface = Color(0xFF746B62),
-        inverseOnSurface = Color(0xFFFEFEFD),
-        inversePrimary = Color(0xFFB4AA9F),
-        outline = Color(0xFFB5B0A8),
-        outlineVariant = Color(0xFFD1CCC4),
+        inversePrimary = Color(0xFFB4AA9F)
     ),
-    dark = darkColorScheme(
+    dark = darkScheme(
         primary = Color(0xFFC4B6A3),
         onPrimary = Color(0xFF171412),
         primaryContainer = Color(0xFF49423A),
@@ -93,33 +225,15 @@ private val WARM_BEIGE = Palette(
         onError = Color(0xFF171412),
         errorContainer = Color(0xFF463C35),
         onErrorContainer = Color(0xFFD1BDB3),
-        background = Color(0xFF171718),
-        onBackground = Color(0xFFE5DFD5),
-        surface = Color(0xFF2F2E30),
-        onSurface = Color(0xFFE5DFD5),
-        surfaceVariant = Color(0xFF2E2E31),
-        onSurfaceVariant = Color(0xFFCFC6BA),
-        surfaceContainerLowest = Color(0xFF0E0E0F),
-        surfaceContainerLow = Color(0xFF171718),
-        surfaceContainer = Color(0xFF1E1E20),
-        surfaceContainerHigh = Color(0xFF262628),
-        surfaceContainerHighest = Color(0xFF2F2E30),
-        surfaceBright = Color(0xFF232325),
-        surfaceDim = Color(0xFF131314),
-        inverseSurface = Color(0xFFC9C3BA),
-        inverseOnSurface = Color(0xFF1D1A18),
-        inversePrimary = Color(0xFF7F766A),
-        outline = Color(0xFF7C766D),
-        outlineVariant = Color(0xFF686058),
-    )
+        inversePrimary = Color(0xFF7F766A)
+    ),
 )
 
-/** 青灰 */
 private val SLATE = Palette(
     id = "slate",
     nameRes = R.string.palette_slate,
     swatch = Color(0xFF5F7480),
-    light = lightColorScheme(
+    light = lightScheme(
         primary = Color(0xFF5F7480),
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFFDFE5E8),
@@ -136,26 +250,9 @@ private val SLATE = Palette(
         onError = Color(0xFFFFFFFF),
         errorContainer = Color(0xFFECE8E9),
         onErrorContainer = Color(0xFF7B6161),
-        background = Color(0xFFF6F5F4),
-        onBackground = Color(0xFF3F4B52),
-        surface = Color(0xFFEEEDEB),
-        onSurface = Color(0xFF3F4B52),
-        surfaceVariant = Color(0xFFE1E0DE),
-        onSurfaceVariant = Color(0xFF586670),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF6F5F4),
-        surfaceContainer = Color(0xFFF2F1F0),
-        surfaceContainerHigh = Color(0xFFEAE9E7),
-        surfaceContainerHighest = Color(0xFFE3E2E1),
-        surfaceBright = Color(0xFFF8F7F6),
-        surfaceDim = Color(0xFFDCDBD9),
-        inverseSurface = Color(0xFF5A656B),
-        inverseOnSurface = Color(0xFFFEFEFE),
-        inversePrimary = Color(0xFF97A5AC),
-        outline = Color(0xFFA7B0B5),
-        outlineVariant = Color(0xFFC3CCD1),
+        inversePrimary = Color(0xFF97A5AC)
     ),
-    dark = darkColorScheme(
+    dark = darkScheme(
         primary = Color(0xFF9FBAC7),
         onPrimary = Color(0xFF0D1012),
         primaryContainer = Color(0xFF323C41),
@@ -172,33 +269,15 @@ private val SLATE = Palette(
         onError = Color(0xFF0D1012),
         errorContainer = Color(0xFF3B373A),
         onErrorContainer = Color(0xFFDCC1C1),
-        background = Color(0xFF171718),
-        onBackground = Color(0xFFDCE4E8),
-        surface = Color(0xFF2F2E30),
-        onSurface = Color(0xFFDCE4E8),
-        surfaceVariant = Color(0xFF2E2E31),
-        onSurfaceVariant = Color(0xFFBAC7CE),
-        surfaceContainerLowest = Color(0xFF0E0E0F),
-        surfaceContainerLow = Color(0xFF171718),
-        surfaceContainer = Color(0xFF1E1E20),
-        surfaceContainerHigh = Color(0xFF262628),
-        surfaceContainerHighest = Color(0xFF2F2E30),
-        surfaceBright = Color(0xFF232325),
-        surfaceDim = Color(0xFF131314),
-        inverseSurface = Color(0xFFBEC6CA),
-        inverseOnSurface = Color(0xFF111517),
-        inversePrimary = Color(0xFF677981),
-        outline = Color(0xFF687277),
-        outlineVariant = Color(0xFF515C61),
-    )
+        inversePrimary = Color(0xFF677981)
+    ),
 )
 
-/** 陶土 */
 private val TERRACOTTA = Palette(
     id = "terracotta",
     nameRes = R.string.palette_terracotta,
     swatch = Color(0xFFA96F57),
-    light = lightColorScheme(
+    light = lightScheme(
         primary = Color(0xFFA96F57),
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFFEFE2DC),
@@ -215,26 +294,9 @@ private val TERRACOTTA = Palette(
         onError = Color(0xFFFFFFFF),
         errorContainer = Color(0xFFF0E0DA),
         onErrorContainer = Color(0xFF7E4437),
-        background = Color(0xFFF6F5F4),
-        onBackground = Color(0xFF5A4038),
-        surface = Color(0xFFEEEDEB),
-        onSurface = Color(0xFF5A4038),
-        surfaceVariant = Color(0xFFE1E0DE),
-        onSurfaceVariant = Color(0xFF7A5A4E),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF6F5F4),
-        surfaceContainer = Color(0xFFF2F1F0),
-        surfaceContainerHigh = Color(0xFFEAE9E7),
-        surfaceContainerHighest = Color(0xFFE3E2E1),
-        surfaceBright = Color(0xFFF8F7F6),
-        surfaceDim = Color(0xFFDCDBD9),
-        inverseSurface = Color(0xFF725B54),
-        inverseOnSurface = Color(0xFFFEFCFC),
-        inversePrimary = Color(0xFFC7A192),
-        outline = Color(0xFFBAA8A0),
-        outlineVariant = Color(0xFFD6C4BC),
+        inversePrimary = Color(0xFFC7A192)
     ),
-    dark = darkColorScheme(
+    dark = darkScheme(
         primary = Color(0xFFE0A189),
         onPrimary = Color(0xFF120C0A),
         primaryContainer = Color(0xFF46322A),
@@ -251,33 +313,15 @@ private val TERRACOTTA = Palette(
         onError = Color(0xFF120C0A),
         errorContainer = Color(0xFF473029),
         onErrorContainer = Color(0xFFECBDB0),
-        background = Color(0xFF171718),
-        onBackground = Color(0xFFEDDDD5),
-        surface = Color(0xFF2F2E30),
-        onSurface = Color(0xFFEDDDD5),
-        surfaceVariant = Color(0xFF2E2E31),
-        onSurfaceVariant = Color(0xFFD6BFB5),
-        surfaceContainerLowest = Color(0xFF0E0E0F),
-        surfaceContainerLow = Color(0xFF171718),
-        surfaceContainer = Color(0xFF1E1E20),
-        surfaceContainerHigh = Color(0xFF262628),
-        surfaceContainerHighest = Color(0xFF2F2E30),
-        surfaceBright = Color(0xFF232325),
-        surfaceDim = Color(0xFF131314),
-        inverseSurface = Color(0xFFCEBFB8),
-        inverseOnSurface = Color(0xFF16100E),
-        inversePrimary = Color(0xFF926959),
-        outline = Color(0xFF7B6A64),
-        outlineVariant = Color(0xFF615049),
-    )
+        inversePrimary = Color(0xFF926959)
+    ),
 )
 
-/** 靛蓝 */
 private val INDIGO = Palette(
     id = "indigo",
     nameRes = R.string.palette_indigo,
     swatch = Color(0xFF5C608F),
-    light = lightColorScheme(
+    light = lightScheme(
         primary = Color(0xFF5C608F),
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFFE0E0EC),
@@ -294,26 +338,9 @@ private val INDIGO = Palette(
         onError = Color(0xFFFFFFFF),
         errorContainer = Color(0xFFEBE0E8),
         onErrorContainer = Color(0xFF764355),
-        background = Color(0xFFF6F5F4),
-        onBackground = Color(0xFF3D4063),
-        surface = Color(0xFFEEEDEB),
-        onSurface = Color(0xFF3D4063),
-        surfaceVariant = Color(0xFFE1E0DE),
-        onSurfaceVariant = Color(0xFF5B5F85),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF6F5F4),
-        surfaceContainer = Color(0xFFF2F1F0),
-        surfaceContainerHigh = Color(0xFFEAE9E7),
-        surfaceContainerHighest = Color(0xFFE3E2E1),
-        surfaceBright = Color(0xFFF8F7F6),
-        surfaceDim = Color(0xFFDCDBD9),
-        inverseSurface = Color(0xFF595B7A),
-        inverseOnSurface = Color(0xFFFEFEFF),
-        inversePrimary = Color(0xFF9598B6),
-        outline = Color(0xFFA9ABC0),
-        outlineVariant = Color(0xFFC5C6D8),
+        inversePrimary = Color(0xFF9598B6)
     ),
-    dark = darkColorScheme(
+    dark = darkScheme(
         primary = Color(0xFFAEB2E4),
         onPrimary = Color(0xFF0C0D13),
         primaryContainer = Color(0xFF343649),
@@ -330,33 +357,15 @@ private val INDIGO = Palette(
         onError = Color(0xFF0C0D13),
         errorContainer = Color(0xFF3E323F),
         onErrorContainer = Color(0xFFEABFCE),
-        background = Color(0xFF171718),
-        onBackground = Color(0xFFE1E2F2),
-        surface = Color(0xFF2F2E30),
-        onSurface = Color(0xFFE1E2F2),
-        surfaceVariant = Color(0xFF2E2E31),
-        onSurfaceVariant = Color(0xFFC0C2DA),
-        surfaceContainerLowest = Color(0xFF0E0E0F),
-        surfaceContainerLow = Color(0xFF171718),
-        surfaceContainer = Color(0xFF1E1E20),
-        surfaceContainerHigh = Color(0xFF262628),
-        surfaceContainerHighest = Color(0xFF2F2E30),
-        surfaceBright = Color(0xFF232325),
-        surfaceDim = Color(0xFF131314),
-        inverseSurface = Color(0xFFC3C4D3),
-        inverseOnSurface = Color(0xFF101017),
-        inversePrimary = Color(0xFF717494),
-        outline = Color(0xFF6B6C7E),
-        outlineVariant = Color(0xFF515265),
-    )
+        inversePrimary = Color(0xFF717494)
+    ),
 )
 
-/** 石墨 */
 private val GRAPHITE = Palette(
     id = "graphite",
     nameRes = R.string.palette_graphite,
     swatch = Color(0xFF5F6368),
-    light = lightColorScheme(
+    light = lightScheme(
         primary = Color(0xFF5F6368),
         onPrimary = Color(0xFFFFFFFF),
         primaryContainer = Color(0xFFDFE0E2),
@@ -373,26 +382,9 @@ private val GRAPHITE = Palette(
         onError = Color(0xFFFFFFFF),
         errorContainer = Color(0xFFE9DEDF),
         onErrorContainer = Color(0xFF713B3B),
-        background = Color(0xFFF6F5F4),
-        onBackground = Color(0xFF3C4043),
-        surface = Color(0xFFEEEDEB),
-        onSurface = Color(0xFF3C4043),
-        surfaceVariant = Color(0xFFE1E0DE),
-        onSurfaceVariant = Color(0xFF5F6368),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF6F5F4),
-        surfaceContainer = Color(0xFFF2F1F0),
-        surfaceContainerHigh = Color(0xFFEAE9E7),
-        surfaceContainerHighest = Color(0xFFE3E2E1),
-        surfaceBright = Color(0xFFF8F7F6),
-        surfaceDim = Color(0xFFDCDBD9),
-        inverseSurface = Color(0xFF585B5E),
-        inverseOnSurface = Color(0xFFFEFEFE),
-        inversePrimary = Color(0xFF979A9D),
-        outline = Color(0xFFAAACB0),
-        outlineVariant = Color(0xFFC6C8CA),
+        inversePrimary = Color(0xFF979A9D)
     ),
-    dark = darkColorScheme(
+    dark = darkScheme(
         primary = Color(0xFFC7CBD1),
         onPrimary = Color(0xFF0C0C0D),
         primaryContainer = Color(0xFF393A3D),
@@ -409,25 +401,8 @@ private val GRAPHITE = Palette(
         onError = Color(0xFF0C0C0D),
         errorContainer = Color(0xFF3E3234),
         onErrorContainer = Color(0xFFEBC3C3),
-        background = Color(0xFF171718),
-        onBackground = Color(0xFFE3E4E6),
-        surface = Color(0xFF2F2E30),
-        onSurface = Color(0xFFE3E4E6),
-        surfaceVariant = Color(0xFF2E2E31),
-        onSurfaceVariant = Color(0xFFC2C5C8),
-        surfaceContainerLowest = Color(0xFF0E0E0F),
-        surfaceContainerLow = Color(0xFF171718),
-        surfaceContainer = Color(0xFF1E1E20),
-        surfaceContainerHigh = Color(0xFF262628),
-        surfaceContainerHighest = Color(0xFF2F2E30),
-        surfaceBright = Color(0xFF232325),
-        surfaceDim = Color(0xFF131314),
-        inverseSurface = Color(0xFFC4C5C7),
-        inverseOnSurface = Color(0xFF101012),
-        inversePrimary = Color(0xFF818488),
-        outline = Color(0xFF6C6E70),
-        outlineVariant = Color(0xFF515356),
-    )
+        inversePrimary = Color(0xFF818488)
+    ),
 )
 
 object PaletteCatalog {
