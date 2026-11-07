@@ -25,10 +25,10 @@ class FloatingWindowService : Service() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 CHANNEL_ID,
-                "悬浮窗服务",
+                getString(R.string.ch_float),
                 android.app.NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "悬浮窗服务通知"
+                description = getString(R.string.ch_float_desc)
                 setShowBadge(false)
             }
             val notificationManager = getSystemService(android.app.NotificationManager::class.java)
@@ -72,8 +72,8 @@ class FloatingWindowService : Service() {
     }
 
     private fun createNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("PhotosManager")
-        .setContentText("照片管理界面")
+        .setContentTitle(getString(R.string.app_name))
+        .setContentText(getString(R.string.notif_floating_body))
         .setSmallIcon(R.drawable.ic_launcher_foreground)
         .setOngoing(true)
         .setPriority(NotificationCompat.PRIORITY_LOW)

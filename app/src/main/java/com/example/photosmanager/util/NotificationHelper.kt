@@ -9,16 +9,15 @@ import com.example.photosmanager.R
 
 object NotificationHelper {
     private const val CHANNEL_ID = "photos_manager_channel"
-    private const val CHANNEL_NAME = "PhotosManager"
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                context.getString(R.string.ch_service),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "照片管理通知"
+                description = context.getString(R.string.ch_service_desc)
             }
             val notificationManager = context.getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
@@ -29,8 +28,8 @@ object NotificationHelper {
         createNotificationChannel(context)
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("PhotosManager")
-            .setContentText("已删除 $deletedCount 张照片")
+            .setContentTitle(context.getString(R.string.app_name))
+            .setContentText(context.getString(R.string.notif_deleted_body, deletedCount.toInt()))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

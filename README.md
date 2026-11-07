@@ -4,7 +4,7 @@
   <p>把每次解锁手机的碎片时间，变成清理相册的时间。</p>
   <p>
     <img alt="platform" src="https://img.shields.io/badge/Android-7.0%2B-green"/>
-    <img alt="release" src="https://img.shields.io/badge/release-v1.9-blue"/>
+    <img alt="release" src="https://img.shields.io/badge/release-v1.10-blue"/>
     <img alt="lang" src="https://img.shields.io/badge/Kotlin-2.0.21-orange"/>
     <img alt="offline" src="https://img.shields.io/badge/联网-不需要-informational"/>
   </p>
@@ -60,8 +60,12 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 | 免打扰时段 | 开关 + 起止时间 | 任意时刻，可跨午夜 | 关（22:00 — 07:00） |
 | 相册设置 | 次级页面多选 | 设备上全部相册 | 空 |
 | 主题颜色 | 色块单选 | 米白 / 青灰 / 陶土 / 靛蓝 / 石墨 | 米白 |
+| 使用引导 | 二级入口 | 五页滑动 | — |
+| 关于 | 二级入口 | 应用名、版本号、一句话说明 | — |
 
 两个数量设置做成固定档位的旋钮，而不是连续滑块：一条轨道上挤 20 个格子时每格只有约 17dp，指尖会一次压住两格，想停在"5"结果停在"7"是常态；而"8 张"和"12 张"体感上本来就没区别。两个旋钮并排放在同一张卡片里，圆盘直径按可用宽度自适应（360dp 宽的屏上约 160dp），圆环、刻度点、指针、数字标签全部同比例缩放。旋钮张角 240°、每格 48°（附近数量每格 60°），拖动或点击都会吸附到最近的一格并震一下，周围的数字本身也能直接点。旧数据里落在两档之间的整数会就近显示，改一次就归位。
+
+手指只有压在圆环那条带上（连同外圈的数字标签）才算"我在调旋钮"；按在圆盘圆心、环外或标题文字上，事件原封不动交还给页面，设置页照样能正常上下滚动——否则一个 190dp 的圆盘会把它下面一大片内容都按住不动。
 
 切档的震动是应用自己发的短脉冲，**不读系统的"触摸反馈"开关**：你可以把这个全局开关留着关掉，让其它动作都安安静静，只有这里的旋钮切档会震一下。
 
@@ -69,11 +73,13 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 **深色模式跟随系统**，应用里没有"夜间模式"开关：系统开深色，设置页、悬浮窗、确认删除页就都是深色。每个主题都成对准备了亮色和暗色两套配色，所以换主题和换深浅色互不干扰。
 
+**底色不跟着主题走**。页面背景固定为一个中性色（浅色 `#F6F5F4` / 深色 `#171718`），五套配色共用，状态栏与导航栏同色；卡片比页面略深一档（`#EEEDEB` / `#2F2E30`）。主题配色只管按钮、开关、旋钮指针这些控件色——之前 Material3 的卡片默认取 `surfaceContainerHighest`，那一层每套配色都带色温，换主题时整屏背景连卡片会一起变。
+
 **主题颜色**五选一（米白 / 青灰 / 陶土 / 靛蓝 / 石墨），点色块即切换，正在显示的界面立刻跟着重绘，不需要重进应用。
 
 ## 安装
 
-到 [Releases](../../releases) 下载 `PhotosManager-v1.9.apk`，安装时系统会提示"未知来源应用"，允许即可。
+到 [Releases](../../releases) 下载 `PhotosManager-v1.10.apk`，安装时系统会提示"未知来源应用"，允许即可。
 
 覆盖升级要求签名一致，本仓库发布的 APK 从 v1.1 起使用同一把签名密钥（见文末）。
 
@@ -112,7 +118,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 - **应用内没有回收站**：删除即从媒体库移除，只能依赖系统相册自带的"最近删除"。
 - **三条常驻通知无法关闭**（屏幕监听 / 悬浮窗 / 后台服务各一条）。
 - **大相册一次性全量载入内存**，几万张照片时会有明显延迟。
-- 界面文案目前硬编码中文，未做国际化。
+- 界面文案已全部收进 `res/values/strings.xml`，但只提供中文一套，未做国际化。
 - 登录 / 兑换码模块（`auth/`）是未启用的占位代码，`LoginActivity` 连 Manifest 都没注册，不影响任何功能。
 - Manifest 里声明了 `DISABLE_KEYGUARD`，但代码中并未使用，属于冗余声明。
 
@@ -160,7 +166,7 @@ Kotlin 2.0.21 · Jetpack Compose (BOM 2024.09.00) · Material 3 · Room 2.6.1 ·
 app/src/main/java/com/example/photosmanager/
 ├── service/     ScreenMonitorService（亮屏监听）、FloatingWindowService（悬浮窗）、BackgroundService（保活）
 ├── ui/floating/ FloatingWindowManager（窗口管理）、FloatingWindowContent（卡片 UI 与决策逻辑）
-├── ui/          confirm（批量确认删除）、settings、onboarding
+├── ui/          confirm（批量确认删除）、settings（含旋钮与选择器）、onboarding、about、components（卡片/行等共用样式）
 ├── data/        Room 实体与 DAO、PhotoRepository（MediaStore 查询与删除）、PreferencesRepository
 └── util/        权限申请、通知
 ```

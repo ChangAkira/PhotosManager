@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
+import com.example.photosmanager.R
 import com.example.photosmanager.data.model.PhotoAction
 import com.example.photosmanager.data.model.PhotoInfo
 import com.example.photosmanager.data.model.PhotoSelection
@@ -56,7 +57,7 @@ object SessionStore {
         }
         val appContext = context.applicationContext
         val json = PreferencesRepository(appContext).activeSessionJson.first() ?: return
-        val parsed = deserialize(json) ?: return
+        val parsed = deserialize(appContext, json) ?: return
         val (savedPhotos, savedIndex) = parsed
         if (savedPhotos.isEmpty()) return
 
@@ -174,7 +175,10 @@ object SessionStore {
         }
     }
 
-    private fun deserialize(raw: String): Pair<List<PhotoSelection>, Int>? {
+    private fun deserialize(
+        context: Context,
+        raw: String,
+    ): Pair<List<PhotoSelection>, Int>? {
         return try {
             val root = JSONObject(raw)
             if (root.optInt("version", -1) != VERSION) return null
@@ -184,7 +188,7 @@ object SessionStore {
                 val item = array.getJSONObject(i)
                 val info = PhotoInfo(
                     uri = item.getString("uri"),
-                    albumName = item.optString("albumName", "未知相册"),
+                    albumName = item.optString("albumName", context.getString(R.string.album_unknown)),
                     dateAdded = item.optLong("dateAdded"),
                     dateModified = item.optLong("dateModified"),
                     size = item.optLong("size"),

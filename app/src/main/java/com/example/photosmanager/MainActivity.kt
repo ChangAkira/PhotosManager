@@ -13,15 +13,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.service.BackgroundService
 import com.example.photosmanager.service.ScreenMonitorService
+import com.example.photosmanager.ui.components.PaletteCard
 import com.example.photosmanager.ui.onboarding.OnboardingActivity
 import com.example.photosmanager.ui.settings.SettingsActivity
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
@@ -32,6 +36,13 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private lateinit var preferencesRepository: PreferencesRepository
 
+    /**
+     * 权限是系统那边改的，从系统设置页回来只会走 onResume，不会重建本页。
+     * 状态放在 Activity 身上、onResume 里刷一次就够了——之前挂的是 2 秒一次的轮询，
+     * 页面看不见时也在跑，而且从授权页回来还要等最多两秒才更新。
+     */
+    private val permissionsGranted = mutableStateOf(false)
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -40,7 +51,7 @@ class MainActivity : ComponentActivity() {
             requestPermissions()
         }
     }
-    
+
     private val requestMultiplePermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -56,84 +67,46 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        android.util.Log.d("MainActivity", "onCreate 开始")
-        
-        try {
-            android.util.Log.d("MainActivity", "初始化 PreferencesRepository")
-            preferencesRepository = PreferencesRepository(this)
-            
-            android.util.Log.d("MainActivity", "设置 Compose 内容")
-            enableEdgeToEdge()
-            setContent {
-                PHOTOSMANAGERTheme {
-                    MainScreen(
-                        onRequestPermissions = { 
-                            try {
-                                requestPermissions()
-                            } catch (e: Exception) {
-                                android.util.Log.e("MainActivity", "请求权限失败", e)
-                            }
-                        },
-                        onOpenSettings = { 
-                            try {
-                                startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
-                            } catch (e: Exception) {
-                                android.util.Log.e("MainActivity", "打开设置失败", e)
-                            }
-                        }
-                    )
-                }
-            }
+        preferencesRepository = PreferencesRepository(this)
 
-            android.util.Log.d("MainActivity", "检查首次启动")
-            // 检查是否需要显示引导
-            checkFirstLaunch()
-            
-            android.util.Log.d("MainActivity", "检查并启动服务")
-            // 检查权限并启动服务
-            checkAndStartServices()
-            
-            android.util.Log.d("MainActivity", "onCreate 完成")
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "onCreate 失败", e)
-            e.printStackTrace()
-            // 不直接 finish，而是显示错误信息
-            try {
-                setContent {
-                    androidx.compose.material3.Text(
-                        "应用启动失败: ${e.message}\n请查看日志获取详细信息",
-                        modifier = androidx.compose.ui.Modifier.padding(16.dp)
-                    )
-                }
-            } catch (e2: Exception) {
-                android.util.Log.e("MainActivity", "显示错误信息也失败", e2)
-                finish()
+        enableEdgeToEdge()
+        setContent {
+            PHOTOSMANAGERTheme {
+                MainScreen(
+                    hasAllPermissions = permissionsGranted.value,
+                    onRequestPermissions = { requestPermissions() },
+                    onOpenSettings = {
+                        startActivity(Intent(this@MainActivity, SettingsActivity::class.java))
+                    }
+                )
             }
         }
+
+        checkFirstLaunch()
+        checkAndStartServices()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        permissionsGranted.value = hasAllCorePermissions(this)
     }
 
     private fun checkFirstLaunch() {
-        try {
-            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
-            scope.launch {
-                try {
-                    val isFirstLaunch = preferencesRepository.isFirstLaunch.first()
-                    if (isFirstLaunch) {
-                        startActivity(Intent(this@MainActivity, OnboardingActivity::class.java))
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "checkFirstLaunch 失败", e)
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+        scope.launch {
+            try {
+                if (preferencesRepository.isFirstLaunch.first()) {
+                    startActivity(Intent(this@MainActivity, OnboardingActivity::class.java))
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "checkFirstLaunch 失败", e)
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "checkFirstLaunch 初始化失败", e)
         }
     }
 
     private fun requestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
-        
+
         // 检查并添加存储权限
         if (!PermissionHelper.hasStoragePermission(this)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -170,40 +143,30 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        permissionsGranted.value = true
         checkAndStartServices()
     }
 
     private fun checkAndStartServices() {
-        try {
-            if (!PermissionHelper.hasStoragePermission(this) ||
-                !PermissionHelper.hasNotificationPermission(this) ||
-                !PermissionHelper.hasOverlayPermission(this)) {
-                android.util.Log.d("MainActivity", "权限未完全授予，跳过服务启动")
-                return
-            }
-
-            android.util.Log.d("MainActivity", "所有权限已授予，检查服务状态")
-            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
-            scope.launch {
-                try {
-                    val isServiceEnabled = preferencesRepository.isServiceEnabled.first()
-                    android.util.Log.d("MainActivity", "服务启用状态: $isServiceEnabled")
-                    if (isServiceEnabled) {
-                        startBackgroundService()
-                        startScreenMonitorService()
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "检查服务状态失败", e)
+        if (!hasAllCorePermissions(this)) {
+            android.util.Log.d("MainActivity", "权限未完全授予，跳过服务启动")
+            return
+        }
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+        scope.launch {
+            try {
+                if (preferencesRepository.isServiceEnabled.first()) {
+                    startBackgroundService()
+                    startScreenMonitorService()
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "检查服务状态失败", e)
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "checkAndStartServices 失败", e)
         }
     }
 
     private fun startBackgroundService() {
         try {
-            android.util.Log.d("MainActivity", "启动后台服务")
             val intent = Intent(this, BackgroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
@@ -217,7 +180,6 @@ class MainActivity : ComponentActivity() {
 
     private fun startScreenMonitorService() {
         try {
-            android.util.Log.d("MainActivity", "启动屏幕监听服务")
             val intent = Intent(this, ScreenMonitorService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
@@ -230,178 +192,169 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun hasAllCorePermissions(context: Context): Boolean =
+    PermissionHelper.hasStoragePermission(context) &&
+        PermissionHelper.hasNotificationPermission(context) &&
+        PermissionHelper.hasOverlayPermission(context)
+
+/**
+ * 首页版式和 ScreenshotBye 的 activity_main.xml 一致：顶部不再叠一条 toolbar
+ * （页面没有二级操作，标题就是那行大字），下面居中一列，24dp 内边距，
+ * 标题 / 副标题 / 一行运行状态，然后两个整宽按钮，最后是电池优化卡（仅未放行时出现）
+ * 与自启动卡（常驻、只给说明不放跳转按钮）。
+ *
+ * 权限授予状态全部由「请求权限」这一个按钮的启用与文案体现，不再逐行说明，
+ * 也不放那条解释「附近」的长提示——那句写进使用引导和 README 更合适。
+ */
 @Composable
 fun MainScreen(
+    hasAllPermissions: Boolean,
     onRequestPermissions: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    var hasAllPermissions by remember { mutableStateOf(false) }
-    
-    // 实时检查权限状态
-    LaunchedEffect(Unit) {
-        hasAllPermissions = PermissionHelper.hasStoragePermission(context) &&
-                PermissionHelper.hasNotificationPermission(context) &&
-                PermissionHelper.hasOverlayPermission(context)
-    }
-    
-    // 当权限状态可能改变时重新检查
-    DisposableEffect(Unit) {
-        val checkPermissions = {
-            hasAllPermissions = PermissionHelper.hasStoragePermission(context) &&
-                    PermissionHelper.hasNotificationPermission(context) &&
-                    PermissionHelper.hasOverlayPermission(context)
-        }
-        
-        // 定期检查权限状态
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val runnable = object : Runnable {
-            override fun run() {
-                try {
-                    checkPermissions()
-                    handler.postDelayed(this, 2000) // 改为2秒检查一次
-                } catch (e: Exception) {
-                    // 忽略错误
-                }
-            }
-        }
-        handler.post(runnable)
-        
-        onDispose {
-            try {
-                handler.removeCallbacks(runnable)
-            } catch (e: Exception) {
-                // 忽略错误
-            }
-        }
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("PhotosManager") }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+    val context = LocalContext.current
+    val preferencesRepository = remember { PreferencesRepository(context) }
+    val isServiceEnabled by preferencesRepository.isServiceEnabled.collectAsState(initial = false)
+    val photosPerSession by preferencesRepository.photosPerSession
+        .collectAsState(initial = PreferencesRepository.DEFAULT_PHOTOS_PER_SESSION)
+
+    val scroll = rememberScrollState()
+    // 内容不满一屏时垂直居中（和参考仓库的 fillViewport + center_vertical 一样）；
+    // 超过一屏就老实地从头排，免得标题被顶出可滚动范围。
+    val centered = scroll.maxValue == 0
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            // targetSdk 36 之后系统强制内容顶到状态栏底下，本页又没有 Scaffold 帮忙留白，
+            // 所以系统栏那圈内边距要自己加。加在 verticalScroll 之前，是让滚动视口跟着缩。
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .verticalScroll(scroll)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = if (centered) Arrangement.Center else Arrangement.Top
+    ) {
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(R.string.home_subtitle),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = if (isServiceEnabled) stringResource(R.string.main_running, photosPerSession)
+            else stringResource(R.string.main_stopped),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = onRequestPermissions,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !hasAllPermissions
         ) {
             Text(
-                text = "PhotosManager",
-                style = MaterialTheme.typography.headlineLarge
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = "帮助您在碎片时间里管理手机相册",
-                style = MaterialTheme.typography.bodyLarge
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = "tip: 点击附近可将当前照片的附近几张照片添加进考察队列，因为无用照片的附近很可能也是无用照片~",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Button(
-                onClick = onRequestPermissions,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !hasAllPermissions
-            ) {
-                Text(if (hasAllPermissions) "权限已授予" else "请求权限")
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Button(
-                onClick = onOpenSettings,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("设置")
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // 电池优化引导
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val powerManager = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                val isIgnoringBatteryOptimizations = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    powerManager.isIgnoringBatteryOptimizations(context.packageName)
-                } else {
-                    true
-                }
-                
-                if (!isIgnoringBatteryOptimizations) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "为了确保应用正常运行",
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Text(
-                                text = "建议将应用加入白名单或忽略电池优化，以防止被系统清理",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Button(
-                                onClick = {
-                                    try {
-                                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("MainActivity", "打开电池优化设置失败", e)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("前往设置")
-                            }
-                        }
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // 应用启动管理引导（针对华为/荣耀等厂商）
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                stringResource(
+                    if (hasAllPermissions) R.string.home_request_perms_done
+                    else R.string.home_request_perms
                 )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "为保障稳定运行",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Text(
-                        text = "请关闭系统对应用的自动管理（设置搜索应用启动管理），并打开\"允许自启动\"\"允许后台活动\"选项",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onOpenSettings,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.home_open_settings))
+        }
+
+        // 电池优化卡：只在系统没放行时出现，和参考仓库一致
+        if (!isIgnoringBatteryOptimizations(context)) {
+            Spacer(modifier = Modifier.height(16.dp))
+            PaletteCard(contentPadding = PaddingValues(0.dp)) {
+                WarningCardBody(
+                    title = stringResource(R.string.home_battery_title),
+                    body = stringResource(R.string.home_battery_body),
+                    actionText = stringResource(R.string.home_battery_settings),
+                    onAction = { openBatteryOptimizationSettings(context) }
+                )
             }
         }
+
+        // 自启动引导：常驻，只放说明文字，不放跳转按钮（各家 ROM 入口不同，跳过去也未必是这一页）
+        Spacer(modifier = Modifier.height(16.dp))
+        PaletteCard(contentPadding = PaddingValues(0.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.home_autostart_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.home_autostart_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WarningCardBody(
+    title: String,
+    body: String,
+    actionText: String,
+    onAction: () -> Unit
+) {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Button(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
+            Text(actionText)
+        }
+    }
+}
+
+private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+    val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        ?: return true
+    return runCatching { powerManager.isIgnoringBatteryOptimizations(context.packageName) }
+        .getOrDefault(false)
+}
+
+private fun openBatteryOptimizationSettings(context: Context) {
+    try {
+        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+    } catch (e: Exception) {
+        android.util.Log.e("MainActivity", "打开电池优化设置失败", e)
     }
 }

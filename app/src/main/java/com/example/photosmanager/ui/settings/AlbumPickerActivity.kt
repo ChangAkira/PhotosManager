@@ -9,11 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,9 +34,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.data.repository.PreferencesRepository
+import com.example.photosmanager.ui.components.EmptyState
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
 import kotlinx.coroutines.launch
 
@@ -82,10 +87,13 @@ fun AlbumPickerScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("相册设置") },
+                title = { Text(stringResource(R.string.album_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 }
             )
@@ -99,11 +107,7 @@ fun AlbumPickerScreen(onBack: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = "没有读取到相册",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                EmptyState(stringResource(R.string.album_empty))
             }
         } else {
             LazyColumn(
@@ -112,15 +116,21 @@ fun AlbumPickerScreen(onBack: () -> Unit) {
                     .padding(padding)
             ) {
                 items(allAlbums) { album ->
+                    // 整行可点，勾选框只是这行的状态显示：点哪儿都算选中，和参考仓库一致
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { toggle(album) }
+                            .heightIn(min = 48.dp)
                             .padding(horizontal = 16.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(album)
+                        Text(
+                            text = album,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Checkbox(
                             checked = enabledAlbums.contains(album),
                             onCheckedChange = { toggle(album) }

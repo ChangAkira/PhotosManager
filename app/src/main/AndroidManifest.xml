@@ -46,20 +46,27 @@
         <activity
             android:name=".ui.settings.SettingsActivity"
             android:exported="false"
-            android:label="设置"
+            android:label="@string/settings_title"
             android:theme="@style/Theme.PHOTOSMANAGER" />
 
         <!-- 相册选择收在设置页的次级页面里，免得几十本相册把开关和旋钮挤出首屏 -->
         <activity
             android:name=".ui.settings.AlbumPickerActivity"
             android:exported="false"
-            android:label="相册设置"
+            android:label="@string/album_title"
             android:theme="@style/Theme.PHOTOSMANAGER" />
         
+        <!-- 关于页：应用名、版本号与一句话说明 -->
+        <activity
+            android:name=".ui.about.AboutActivity"
+            android:exported="false"
+            android:label="@string/about_title"
+            android:theme="@style/Theme.PHOTOSMANAGER" />
+
         <activity
             android:name=".ui.onboarding.OnboardingActivity"
             android:exported="false"
-            android:label="引导"
+            android:label="@string/app_name"
             android:theme="@style/Theme.PHOTOSMANAGER" />
         
         <!-- 确认删除页跑在独立的任务栈里（taskAffinity 与主应用不同，且不出现在最近任务里），
@@ -68,7 +75,7 @@
         <activity
             android:name=".ui.confirm.ConfirmDeleteActivity"
             android:exported="false"
-            android:label="确认删除"
+            android:label="@string/confirm_title"
             android:theme="@style/Theme.PHOTOSMANAGER"
             android:taskAffinity="com.example.photosmanager.confirm"
             android:excludeFromRecents="true"

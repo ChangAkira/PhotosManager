@@ -1,3 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PhotosManager</string>
+
+    <!--
+      界面文字一律放这里，不写在 .kt 里：和孪生项目 ScreenshotBye 一样。
+      读屏念出来的内容、通知标题、旋钮描述都走资源，改文案不用动逻辑，
+      也不会出现"这一句在 A 页是硬编码、在 B 页又是另一套说法"。
+    -->
+
+    <!-- 通知渠道与服务通知：渠道名和正文都放这里，系统通知设置里看到的就是这些字 -->
+    <string name="ch_service">照片管理</string>
+    <string name="ch_service_desc">删除完成一类的结果提醒</string>
+    <string name="ch_screen">屏幕监听</string>
+    <string name="ch_screen_desc">亮屏监听是否在运行</string>
+    <string name="ch_float">悬浮窗服务</string>
+    <string name="ch_float_desc">整理界面是否在显示</string>
+    <string name="ch_bg">后台服务</string>
+    <string name="ch_bg_desc">PhotosManager 后台常驻服务</string>
+    <string name="notif_screen_watch_body">屏幕监听服务运行中</string>
+    <string name="notif_floating_body">照片管理界面</string>
+    <string name="notif_background_body">后台服务运行中</string>
+    <string name="notif_deleted_body">已删除 %1$d 张照片</string>
+
+    <!-- 首页：权限 + 引导 + 设置入口 -->
+    <string name="home_subtitle">在每次亮屏的碎片时间里管理相册</string>
+    <string name="main_running">运行中 · 每次 %1$d 张</string>
+    <string name="main_stopped">未运行</string>
+    <string name="home_request_perms">请求权限</string>
+    <string name="home_request_perms_done">权限已授予</string>
+    <string name="home_open_settings">设置</string>
+    <string name="home_battery_title">电池优化</string>
+    <string name="home_battery_body">设为「无限制」，否则亮屏监听被系统清掉后，悬浮窗不会再出现</string>
+    <string name="home_battery_settings">前往设置</string>
+    <string name="home_autostart_title">自启动</string>
+    <string name="home_autostart_body">请允许自启动与后台活动，否则监听服务会被杀掉</string>
+
+    <!-- 设置页 -->
+    <string name="settings_title">设置</string>
+    <string name="main_service_switch">启用服务</string>
+    <string name="dial_session">每次显示</string>
+    <string name="dial_nearby">加入附近</string>
+    <string name="unit_pics">张</string>
+    <string name="dnd_title">免打扰时段</string>
+    <string name="dnd_start">开始</string>
+    <string name="dnd_end">结束</string>
+    <string name="dnd_time_desc">%1$s %2$s</string>
+    <string name="settings_album">相册设置</string>
+    <string name="settings_album_none">未选择</string>
+    <string name="settings_album_count">已选 %1$d 个</string>
+    <string name="settings_theme">主题颜色</string>
+    <string name="main_open_guide">使用引导</string>
+    <string name="settings_about">关于</string>
+
+    <!-- 配色名称 -->
+    <string name="palette_beige">米白</string>
+    <string name="palette_slate">青灰</string>
+    <string name="palette_terracotta">陶土</string>
+    <string name="palette_indigo">靛蓝</string>
+    <string name="palette_graphite">石墨</string>
+
+    <!-- 相册选择页 -->
+    <string name="album_title">相册设置</string>
+    <string name="album_empty">没有读取到相册</string>
+    <string name="album_unknown">未知相册</string>
+
+    <!-- 关于页 -->
+    <string name="about_title">关于</string>
+    <string name="about_version">版本 %1$s (%2$d)</string>
+    <string name="about_body">PhotosManager 做的事情很小：每次你点亮屏幕，它从你选好的相册里挑几张照片出来，你只判断一句「要」或「不要」。判断过的不再重复出现，觉得某张值得再看时，可以把它附近的几张一起拉进这一轮。\n\n删除由系统在弹窗里确认，本应用不保存照片副本，卸载也不会带走你的相册。</string>
+
+    <!-- 确认删除页 -->
+    <string name="confirm_title">确认删除</string>
+    <string name="confirm_cancel">取消</string>
+    <string name="confirm_delete_n">确认删除 %1$d 张</string>
+    <string name="dialog_preview">查看照片</string>
+
+    <!-- 悬浮窗 -->
+    <string name="float_no_photo">没有可用的照片</string>
+    <string name="float_done_title">这一批照片全部判断完了</string>
+    <string name="float_done_body">所选相册里现有的 %1$d 张都已经判断过了</string>
+    <string name="float_done_hint">可以去设置里关闭服务或更换相册</string>
+    <string name="float_go_settings">去设置</string>
+    <string name="float_restart_round">重新整理一轮</string>
+    <string name="float_album_from">来自于 %1$s</string>
+    <string name="float_load_failed">无法加载图片</string>
+    <string name="float_keep">保留</string>
+    <string name="float_delete">删除</string>
+    <string name="float_nearby">附近</string>
+    <string name="float_progress">%1$d / %2$d</string>
+
+    <!-- 首次引导 -->
+    <string name="onb_skip">跳过</string>
+    <string name="onb_page_label">%1$d / %2$d</string>
+    <string name="onb_next">下一步</string>
+    <string name="onb_prev">上一步</string>
+    <string name="onb_start">开始使用</string>
+
+    <string-array name="onb_titles">
+        <item>PhotosManager 做什么</item>
+        <item>一次整理长什么样</item>
+        <item>为什么要这些权限</item>
+        <item>删除怎么确认</item>
+        <item>最后一步</item>
+    </string-array>
+
+    <string-array name="onb_bodies">
+        <item>相册里攒着大量只看过的照片，但专门腾出时间去清理总也排不上。这个应用换个办法：每次你点亮屏幕的那十几秒，随机拿出几张照片（默认 5 张，可选 3／5／8／10／15／20），你只判断要不要留下。</item>
+        <item>亮屏后浮窗里一张一张过：保留、删除，或者点「附近」把这张左右的几张一起拉进本轮——无用照片的附近往往也是无用照片。判断过的不会再出现，一轮走完会告诉你这批一共多少张。</item>
+        <item>读取相册：不授权看不到照片。通知：不授权服务跑不住。悬浮窗：亮屏时那层界面靠它。缺任一项，应用都会在首页把「请求权限」按钮留着，点一下就能补齐。</item>
+        <item>你在浮窗里选「删除」只是把它们标出来，进确认页再看一遍、可以反选，最后由系统在弹窗里确认。本应用不保存照片副本，也不替你决定什么该留。</item>
+        <item>进设置页：先选好要管理的相册，再定每次显示几张、加入附近几张，最后打开顶部的「启用服务」。之后每次亮屏都会是新一轮整理。</item>
+    </string-array>
+
+    <!-- 旋钮无障碍描述 -->
+    <string name="dial_desc_with_label">%1$s，当前 %2$d %3$s</string>
+    <string name="dial_value_desc">%1$d %2$s</string>
+    <string name="dial_error_two_presets">DetentDial 至少需要两个档位</string>
+
+    <!-- 通用 -->
+    <string name="cd_back">返回</string>
+    <string name="cd_close">关闭</string>
 </resources>

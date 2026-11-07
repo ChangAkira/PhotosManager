@@ -4,18 +4,51 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.photosmanager.MainActivity
+import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
 import kotlinx.coroutines.launch
 
+/**
+ * 首次引导。版式照 ScreenshotBye 的 activity_onboarding.xml：
+ * 右上角「跳过」，下面居中一行页码，标题 22sp 加粗居中，正文 14sp 靠左带行距，
+ * 中间撑开把页面指示点压到底部，最后一行是「上一步 / 下一步」。
+ */
 class OnboardingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,7 +56,9 @@ class OnboardingActivity : ComponentActivity() {
             PHOTOSMANAGERTheme {
                 OnboardingScreen {
                     finish()
-                    startActivity(android.content.Intent(this@OnboardingActivity, MainActivity::class.java))
+                    startActivity(
+                        android.content.Intent(this@OnboardingActivity, MainActivity::class.java)
+                    )
                 }
             }
         }
@@ -32,65 +67,110 @@ class OnboardingActivity : ComponentActivity() {
 
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val preferencesRepository = remember { PreferencesRepository(context) }
     val scope = rememberCoroutineScope()
 
-    var currentPage by remember { mutableIntStateOf(0) }
+    val titles = stringArrayResource(R.array.onb_titles)
+    val bodies = stringArrayResource(R.array.onb_bodies)
+    val pageCount = titles.size
 
-    val pages = listOf(
-        OnboardingPage(
-            title = "欢迎使用 PhotosManager",
-            description = "帮助您在碎片时间里轻松管理手机相册中的无用照片"
-        ),
-        OnboardingPage(
-            title = "智能照片管理",
-            description = "每次亮屏时随机展示照片，快速决定保留或删除"
-        ),
-        OnboardingPage(
-            title = "批量处理",
-            description = "查看附近照片，批量处理相似的无用照片"
-        ),
-        OnboardingPage(
-            title = "开始使用",
-            description = "请在设置中选择要管理的相册，然后启用服务"
-        )
-    )
+    var currentPage by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            // 同首页：targetSdk 36 起内容会顶到状态栏底下，本页没有 Scaffold，内边距自己补
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(24.dp)
     ) {
-        Text(
-            text = pages[currentPage].title,
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        TextButton(
+            onClick = onComplete,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(stringResource(R.string.onb_skip))
+        }
 
         Text(
-            text = pages[currentPage].description,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(bottom = 32.dp)
+            text = stringResource(R.string.onb_page_label, currentPage + 1, pageCount),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            textAlign = TextAlign.Center,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        // 正文长短不一，小屏上留出可滚的余地
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(top = 20.dp)
+        ) {
+            Text(
+                text = titles[currentPage],
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = bodies[currentPage],
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            titles.indices.forEach { index ->
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .size(if (index == currentPage) 12.dp else 8.dp)
+                        .background(
+                            color = if (index == currentPage)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            shape = CircleShape
+                        )
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp)
         ) {
             if (currentPage > 0) {
-                TextButton(onClick = { currentPage-- }) {
-                    Text("上一步")
+                TextButton(onClick = { currentPage-- }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.onb_prev))
                 }
             } else {
-                Spacer(modifier = Modifier.width(1.dp))
+                Spacer(modifier = Modifier.weight(1f))
             }
 
-            if (currentPage < pages.size - 1) {
-                Button(onClick = { currentPage++ }) {
-                    Text("下一步")
+            if (currentPage < pageCount - 1) {
+                Button(
+                    onClick = { currentPage++ },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
+                ) {
+                    Text(stringResource(R.string.onb_next))
                 }
             } else {
                 Button(
@@ -99,37 +179,14 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                             preferencesRepository.setFirstLaunch(false)
                             onComplete()
                         }
-                    }
-                ) {
-                    Text("开始使用")
-                }
-            }
-        }
-
-        // 页面指示器
-        Row(
-            modifier = Modifier.padding(top = 32.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            pages.forEachIndexed { index, _ ->
-                Box(
+                    },
                     modifier = Modifier
-                        .size(if (index == currentPage) 12.dp else 8.dp)
-                        .background(
-                            color = if (index == currentPage)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                            shape = androidx.compose.foundation.shape.CircleShape
-                        )
-                )
+                        .weight(1f)
+                        .padding(start = 12.dp)
+                ) {
+                    Text(stringResource(R.string.onb_start))
+                }
             }
         }
     }
 }
-
-data class OnboardingPage(
-    val title: String,
-    val description: String
-)
-

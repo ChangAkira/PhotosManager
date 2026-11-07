@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="window_background">#FF1F1B17</color>
+    <!-- 页面背景的夜间中性色：比卡片更暗一档，保持"页面 < 卡片"的层次 -->
+    <color name="page_background">#171718</color>
+    <!-- 卡片背景的夜间中性色，同样不随主题配色变化 -->
+    <color name="card_surface">#2F2E30</color>
 </resources>

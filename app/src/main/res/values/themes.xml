@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- 深浅色跟着系统：Activity 还没画第一帧时露出的是 windowBackground，
-         写死米白的话，深色模式下每次进设置页都会先闪一块白板。 -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      深浅色跟着系统：Activity 还没画第一帧时露出的是 windowBackground，
+      写死米白的话，深色模式下每次进设置页都会先闪一块白板。
+
+      页面背景与状态栏/导航栏都钉死成中性的 @color/page_background，不随主题配色变化：
+      主题颜色只管按钮、旋钮、开关这些控件，页面底色与配色脱钩（夜间版见 values-night）。
+      这样切主题时只有控件换色，整屏不会跟着变成粉色或蓝色。
+    -->
     <style name="Theme.PHOTOSMANAGER" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:windowBackground">@color/page_background</item>
+        <item name="android:statusBarColor">@color/page_background</item>
+        <item name="android:navigationBarColor">@color/page_background</item>
+        <item name="android:windowLightStatusBar">@bool/light_status_bar</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/light_status_bar</item>
     </style>
 </resources>

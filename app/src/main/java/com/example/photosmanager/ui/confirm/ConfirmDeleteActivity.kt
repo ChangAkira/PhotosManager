@@ -6,6 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,10 +18,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.data.repository.ReviewRepository
+import com.example.photosmanager.ui.components.ThumbnailSize
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
 import kotlinx.coroutines.launch
 
@@ -155,26 +163,29 @@ fun ConfirmDeleteScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("确认删除") }
-            )
+            TopAppBar(title = { Text(stringResource(R.string.confirm_title)) })
         },
         bottomBar = {
+            // 左「取消」用描边按钮、右「确认删除 N 张」用实心按钮，和 ScreenshotBye 的反选屏一致
             BottomAppBar {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(onClick = onCancel) {
-                        Text("取消")
+                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.confirm_cancel))
                     }
                     Button(
                         onClick = { onConfirm(selectedPhotos.toList()) },
+                        modifier = Modifier.weight(1f),
+                        enabled = selectedPhotos.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("确认删除 (${selectedPhotos.size})")
+                        Text(stringResource(R.string.confirm_delete_n, selectedPhotos.size))
                     }
                 }
             }
@@ -184,8 +195,6 @@ fun ConfirmDeleteScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(photosToDelete) { uri ->
                 PhotoDeleteItem(
@@ -204,40 +213,47 @@ fun ConfirmDeleteScreen(
     }
 }
 
+/**
+ * 一行一张待确认照片：56dp 缩略图 + 文件名 + 勾选框，整行可点。
+ * 版式照 ScreenshotBye 的 item_review_confirm.xml——不再给每张照片套一张卡片，
+ * 几十张照片连成一列时，卡片之间的缝隙会把"这是一批"的感觉打断。
+ */
 @Composable
 fun PhotoDeleteItem(
     uri: String,
     isSelected: Boolean,
     onToggle: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp),
-        onClick = onToggle
+            .clickable(onClick = onToggle)
+            .heightIn(min = ThumbnailSize + 16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Image(
+            painter = rememberAsyncImagePainter(Uri.parse(uri)),
+            contentDescription = stringResource(R.string.dialog_preview),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onToggle() }
-            )
-            
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            Image(
-                painter = rememberAsyncImagePainter(Uri.parse(uri)),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-        }
+                .size(ThumbnailSize)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop
+        )
+        Text(
+            text = Uri.parse(uri).lastPathSegment ?: uri,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Checkbox(
+            checked = isSelected,
+            onCheckedChange = { onToggle() }
+        )
     }
 }
-

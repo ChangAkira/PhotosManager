@@ -23,8 +23,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.photosmanager.R
 import com.example.photosmanager.data.model.PhotoAction
 import com.example.photosmanager.data.model.PhotoInfo
 import com.example.photosmanager.data.model.PhotoSelection
@@ -169,7 +171,7 @@ fun FloatingWindowContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "关闭")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close))
                     }
                 }
                 // 居中显示提示信息
@@ -180,7 +182,7 @@ fun FloatingWindowContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "没有可用的照片",
+                        text = stringResource(R.string.float_no_photo),
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -283,7 +285,7 @@ fun SessionCompleteContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "关闭")
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close))
             }
         }
 
@@ -298,28 +300,28 @@ fun SessionCompleteContent(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "这一批照片全部判断完了",
+                    text = stringResource(R.string.float_done_title),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "所选相册里现有的 $totalPhotos 张都已经判断过了",
+                    text = stringResource(R.string.float_done_body, totalPhotos),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "可以去设置里关闭服务或更换相册",
+                    text = stringResource(R.string.float_done_hint),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(onClick = onOpenSettings) {
-                    Text("去设置")
+                    Text(stringResource(R.string.float_go_settings))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(onClick = onRestartCycle) {
-                    Text("清空判断记录，重新整理一轮")
+                    Text(stringResource(R.string.float_restart_round))
                 }
             }
         }
@@ -354,12 +356,12 @@ fun PhotoViewerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "来自于 $albumName",
+                text = stringResource(R.string.float_album_from, albumName),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "关闭")
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close))
             }
         }
 
@@ -428,10 +430,10 @@ fun PhotoViewerContent(
                     )
                 } else {
                     Text(
-                        text = "无法加载图片",
+                        text = stringResource(R.string.float_load_failed),
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -480,14 +482,14 @@ fun PhotoViewerContent(
                 onClick = { onAction(PhotoAction.KEEP) },
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
             ) {
-                Text("保留")
+                Text(stringResource(R.string.float_keep))
             }
 
             Button(
                 onClick = { onAction(PhotoAction.MARK_DELETE) },
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
             ) {
-                Text("删除")
+                Text(stringResource(R.string.float_delete))
             }
 
             Button(
@@ -495,7 +497,7 @@ fun PhotoViewerContent(
                 enabled = nearbyEnabled,
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
             ) {
-                Text("附近")
+                Text(stringResource(R.string.float_nearby))
             }
         }
 
@@ -503,10 +505,10 @@ fun PhotoViewerContent(
 
         // 进度指示
         Text(
-            text = "${currentIndex + 1} / $totalCount",
+            text = stringResource(R.string.float_progress, currentIndex + 1, totalCount),
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

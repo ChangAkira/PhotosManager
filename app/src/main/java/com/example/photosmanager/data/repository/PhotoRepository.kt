@@ -5,12 +5,16 @@ import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
 import com.example.photosmanager.data.database.AppDatabase
+import com.example.photosmanager.R
 import com.example.photosmanager.data.model.PhotoInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class PhotoRepository(private val context: Context) {
     private val database = AppDatabase.getDatabase(context)
+    // 媒体库偶尔会给不出相册名（BUCKET_DISPLAY_NAME 为 null）。兜底文案也走资源，
+    // 免得好几种语言里各有一套写法。查询跑在 IO 线程上，getString 只读资源表，线程安全。
+    private val unknownAlbum: String get() = context.getString(R.string.album_unknown)
 
     private val projection = arrayOf(
         MediaStore.Images.Media._ID,
@@ -93,7 +97,7 @@ class PhotoRepository(private val context: Context) {
                 photos.add(
                     PhotoInfo(
                         uri = uri,
-                        albumName = cursor.getString(bucketColumn) ?: "未知相册",
+                        albumName = cursor.getString(bucketColumn) ?: unknownAlbum,
                         dateAdded = cursor.getLong(dateAddedColumn) * 1000,
                         dateModified = cursor.getLong(dateModifiedColumn) * 1000,
                         size = cursor.getLong(sizeColumn),

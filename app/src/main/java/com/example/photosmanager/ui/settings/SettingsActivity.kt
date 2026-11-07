@@ -6,29 +6,59 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.service.BackgroundService
 import com.example.photosmanager.service.FloatingWindowService
 import com.example.photosmanager.service.ScreenMonitorService
+import com.example.photosmanager.ui.about.AboutActivity
+import com.example.photosmanager.ui.components.PaletteCard
+import com.example.photosmanager.ui.components.SectionDivider
+import com.example.photosmanager.ui.components.SectionTitle
+import com.example.photosmanager.ui.components.SettingRow
+import com.example.photosmanager.ui.onboarding.OnboardingActivity
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
 import com.example.photosmanager.ui.theme.Palette
 import com.example.photosmanager.ui.theme.PaletteCatalog
@@ -36,12 +66,17 @@ import com.example.photosmanager.ui.theme.ThemeState
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+/**
+ * 设置页四块，和孪生项目 ScreenshotBye 的分卡方式一致：
+ * ① 启用服务（独立一卡，只有一个开关行）②旋钮 ③免打扰时段 ④主题颜色 + 次级入口。
+ * 次级页面（相册、使用引导、关于）收进最后一张卡，免得几十本相册把开关和旋钮挤出首屏。
+ */
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             PHOTOSMANAGERTheme {
-                SettingsScreen()
+                SettingsScreen(onBack = { finish() })
             }
         }
     }
@@ -49,7 +84,7 @@ class SettingsActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val preferencesRepository = remember { PreferencesRepository(context) }
     val scope = rememberCoroutineScope()
@@ -74,81 +109,67 @@ fun SettingsScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置") }
+                title = { Text(stringResource(R.string.settings_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
+                    }
+                }
             )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // ① 启用服务：独立一卡
             item {
-                Card {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("启用服务")
-                        Switch(
-                            checked = isServiceEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch {
-                                    preferencesRepository.setServiceEnabled(enabled)
-                                    // 根据开关状态启动或停止服务
-                                    if (enabled) {
-                                        // 启用服务：启动服务（需要检查权限，但这里只负责启动）
-                                        val intentBackground = Intent(context, BackgroundService::class.java)
-                                        val intentScreen = Intent(context, ScreenMonitorService::class.java)
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                            context.startForegroundService(intentBackground)
-                                            context.startForegroundService(intentScreen)
-                                        } else {
-                                            context.startService(intentBackground)
-                                            context.startService(intentScreen)
-                                        }
-                                    } else {
-                                        // 禁用服务：停止所有服务
-                                        val intentBackground = Intent(context, BackgroundService::class.java)
-                                        val intentScreen = Intent(context, ScreenMonitorService::class.java)
-                                        val intentFloating = Intent(context, FloatingWindowService::class.java)
-                                        context.stopService(intentBackground)
-                                        context.stopService(intentScreen)
-                                        context.stopService(intentFloating)
+                PaletteCard {
+                    SettingRow(
+                        label = stringResource(R.string.main_service_switch),
+                        trailing = {
+                            Switch(
+                                checked = isServiceEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        preferencesRepository.setServiceEnabled(enabled)
+                                        if (enabled) startServices(context) else stopServices(context)
                                     }
                                 }
-                            }
-                        )
-                    }
+                            )
+                        }
+                    )
                 }
             }
 
+            // ② 两个旋钮并排：可选值就那几档，摊成一圈数字比连续滑块好点
             item {
-                Card {
+                PaletteCard(contentPadding = PaddingValues(horizontal = 2.dp, vertical = 12.dp)) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 2.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         DetentDial(
-                            label = "每次显示",
+                            label = stringResource(R.string.dial_session),
                             value = photosPerSession,
                             presets = SESSION_PRESETS,
+                            unitRes = R.string.unit_pics,
                             modifier = Modifier.weight(1f),
                             onValueChange = { newValue ->
                                 scope.launch { preferencesRepository.setPhotosPerSession(newValue) }
                             }
                         )
                         DetentDial(
-                            label = "加入附近",
+                            label = stringResource(R.string.dial_nearby),
                             value = nearbyCount,
                             presets = NEARBY_PRESETS,
+                            unitRes = R.string.unit_pics,
                             modifier = Modifier.weight(1f),
                             onValueChange = { newValue ->
                                 scope.launch { preferencesRepository.setNearbyPhotosCount(newValue) }
@@ -158,17 +179,12 @@ fun SettingsScreen() {
                 }
             }
 
+            // ③ 免打扰时段：只管"下一次亮屏要不要浮出来"
             item {
-                Card {
-                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("免打扰时段")
+                PaletteCard {
+                    SettingRow(
+                        label = stringResource(R.string.dnd_title),
+                        trailing = {
                             Switch(
                                 checked = dndEnabled,
                                 onCheckedChange = { enabled ->
@@ -176,115 +192,136 @@ fun SettingsScreen() {
                                 }
                             )
                         }
-                        if (dndEnabled) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                DndTimeField(
-                                    caption = "开始",
-                                    minute = dndStart,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        pickTime(context, dndStart) { hour, minute ->
-                                            scope.launch {
-                                                preferencesRepository.setDndStartMinute(hour * 60 + minute)
-                                            }
-                                        }
-                                    }
-                                )
-                                Text(
-                                    text = "—",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                )
-                                DndTimeField(
-                                    caption = "结束",
-                                    minute = dndEnd,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        pickTime(context, dndEnd) { hour, minute ->
-                                            scope.launch {
-                                                preferencesRepository.setDndEndMinute(hour * 60 + minute)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    onClick = {
-                        context.startActivity(Intent(context, AlbumPickerActivity::class.java))
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("相册设置")
-                        Text(
-                            text = if (enabledAlbums.isEmpty()) "未选择" else "已选 ${enabledAlbums.size} 个",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            }
-
-            item {
-                Card {
-                    Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                        Text(
-                            text = "主题颜色",
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
+                    )
+                    if (dndEnabled) {
+                        SectionDivider()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            PaletteCatalog.ordered.forEach { palette ->
-                                ThemeSwatch(
-                                    palette = palette,
-                                    isSelected = palette.id == ThemeState.palette.id,
-                                    onClick = {
-                                        scope.launch { preferencesRepository.setThemePalette(palette.id) }
+                            DndTimeField(
+                                captionRes = R.string.dnd_start,
+                                minute = dndStart,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    pickTime(context, dndStart) { hour, minute ->
+                                        scope.launch {
+                                            preferencesRepository.setDndStartMinute(hour * 60 + minute)
+                                        }
                                     }
-                                )
-                            }
+                                }
+                            )
+                            Text(
+                                text = "—",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                            DndTimeField(
+                                captionRes = R.string.dnd_end,
+                                minute = dndEnd,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    pickTime(context, dndEnd) { hour, minute ->
+                                        scope.launch {
+                                            preferencesRepository.setDndEndMinute(hour * 60 + minute)
+                                        }
+                                    }
+                                }
+                            )
                         }
                     }
+                }
+            }
+
+            // ④ 主题颜色 + 次级入口
+            item {
+                PaletteCard(contentPadding = PaddingValues(vertical = 12.dp)) {
+                    SectionTitle(stringResource(R.string.settings_theme))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        PaletteCatalog.ordered.forEach { palette ->
+                            ThemeSwatch(
+                                palette = palette,
+                                isSelected = palette.id == ThemeState.palette.id,
+                                onClick = {
+                                    scope.launch { preferencesRepository.setThemePalette(palette.id) }
+                                }
+                            )
+                        }
+                    }
+
+                    SectionDivider(verticalMargin = 8.dp)
+
+                    SettingRow(
+                        label = stringResource(R.string.main_open_guide),
+                        onClick = {
+                            context.startActivity(Intent(context, OnboardingActivity::class.java))
+                        }
+                    )
+                    SettingRow(
+                        label = stringResource(R.string.settings_album),
+                        value = if (enabledAlbums.isEmpty()) stringResource(R.string.settings_album_none)
+                        else stringResource(R.string.settings_album_count, enabledAlbums.size),
+                        onClick = {
+                            context.startActivity(Intent(context, AlbumPickerActivity::class.java))
+                        }
+                    )
+                    SettingRow(
+                        label = stringResource(R.string.settings_about),
+                        onClick = {
+                            context.startActivity(Intent(context, AboutActivity::class.java))
+                        }
+                    )
                 }
             }
         }
     }
 }
 
-/** 一个色块代表一套配色，选中状态用同色描边的外圈表示，不额外写主题名 */
+private fun startServices(context: Context) {
+    val targets = listOf(BackgroundService::class.java, ScreenMonitorService::class.java)
+    targets.forEach { service ->
+        val intent = Intent(context, service)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+}
+
+private fun stopServices(context: Context) {
+    listOf(
+        BackgroundService::class.java,
+        ScreenMonitorService::class.java,
+        FloatingWindowService::class.java
+    ).forEach { context.stopService(Intent(context, it)) }
+}
+
+/**
+ * 一个色块代表一套配色：只有选中那个带同色粗环，其余是细细的 outline 环，
+ * 和 ScreenshotBye 的 swatchView 一样。环比色块大 10dp，点起来是一整块 40dp。
+ */
 @Composable
 private fun ThemeSwatch(
     palette: Palette,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val ring = if (isSelected) palette.swatch else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val name = stringResource(palette.nameRes)
+    val ringColor = if (isSelected) palette.swatch else MaterialTheme.colorScheme.outline
+    val ringWidth = if (isSelected) 3.dp else 1.5.dp
     Box(
         modifier = Modifier
             .size(40.dp)
             .clip(CircleShape)
-            .border(2.dp, ring, CircleShape)
+            .border(ringWidth, ringColor, CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -293,7 +330,7 @@ private fun ThemeSwatch(
             .semantics {
                 role = Role.RadioButton
                 selected = isSelected
-                contentDescription = palette.displayName
+                contentDescription = name
             },
         contentAlignment = Alignment.Center
     ) {
@@ -306,19 +343,23 @@ private fun ThemeSwatch(
     }
 }
 
+/** 免打扰的起止时间：整块可点，点开是系统时间选择框 */
 @Composable
 private fun DndTimeField(
-    caption: String,
+    @StringRes captionRes: Int,
     minute: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val caption = stringResource(captionRes)
     val clockText = formatMinute(minute)
+    // semantics 里不能调 stringResource（不是组合作用域），先在这里取好
+    val description = stringResource(R.string.dnd_time_desc, caption, clockText)
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "$caption $clockText" }
+            .semantics { contentDescription = description }
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -330,11 +371,12 @@ private fun DndTimeField(
         Text(
             text = caption,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
+/** 时间戳读法："开始 22:00"，给读屏用 */
 private fun formatMinute(minute: Int): String =
     String.format(Locale.US, "%02d:%02d", minute / 60, minute % 60)
 

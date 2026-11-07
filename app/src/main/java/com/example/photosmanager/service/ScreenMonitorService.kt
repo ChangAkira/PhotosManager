@@ -39,10 +39,10 @@ class ScreenMonitorService : Service() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 CHANNEL_ID,
-                "屏幕监听",
+                getString(R.string.ch_screen),
                 android.app.NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "屏幕监听服务通知"
+                description = getString(R.string.ch_screen_desc)
                 setShowBadge(false)
             }
             val notificationManager = getSystemService(android.app.NotificationManager::class.java)
@@ -154,8 +154,8 @@ class ScreenMonitorService : Service() {
     }
 
     private fun createNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle("PhotosManager")
-        .setContentText("屏幕监听服务运行中")
+        .setContentTitle(getString(R.string.app_name))
+        .setContentText(getString(R.string.notif_screen_watch_body))
         .setSmallIcon(R.drawable.ic_launcher_foreground)
         .setOngoing(true)
         .setPriority(NotificationCompat.PRIORITY_LOW)

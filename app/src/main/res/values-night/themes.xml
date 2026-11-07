@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- 深色下换成 Material（非 Light）父主题，系统的时间选择对话框才会跟着变深 -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      深色下换成 Material（非 Light）父主题，系统的时间选择对话框才会跟着变深。
+      底色仍是中性的 @color/page_background（夜间版在 values-night/colors.xml），
+      状态栏/导航栏图标由 @bool/light_status_bar 换成浅色。
+    -->
     <style name="Theme.PHOTOSMANAGER" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:windowBackground">@color/page_background</item>
+        <item name="android:statusBarColor">@color/page_background</item>
+        <item name="android:navigationBarColor">@color/page_background</item>
+        <item name="android:windowLightStatusBar">@bool/light_status_bar</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/light_status_bar</item>
     </style>
 </resources>

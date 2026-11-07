@@ -6,10 +6,12 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.ViewConfiguration
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,9 +39,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -52,7 +56,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.photosmanager.R
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -63,6 +69,25 @@ private const val START_ANGLE = 150f
 
 /** 弧的张角。留 120° 缺口朝下，读数正好放在圆心 */
 private const val SWEEP_ANGLE = 240f
+
+/** 轨道半径占旋钮方框的比例 */
+private const val TRACK_RADIUS_RATIO = 0.363f
+
+/**
+ * 可拨动的环带半宽（占方框比例）。只有落点距圆心在 [轨道半径-带宽, 轨道半径+带宽+档位数字外扩]
+ * 这一段环带里才算"点在圆形轨道附近"，由旋钮接手；环带以内（圆心读数区）和以外（方框四角空白）
+ * 都交还给页面滚动。这样卡片里除了轨道那圈，其余空白都能上下滑动。
+ */
+private const val TRACK_BAND = 0.17f
+
+/**
+ * 弧两端各往外多留一点余量。弧只张 240°，下方 120° 是缺口，那一段连轨道都没有，
+ * 按下时必须让给页面滚动，不能被旋钮吃掉。
+ */
+private const val ARC_SLACK = 12f
+
+/** 档位数字挂在弧外侧的外扩量 */
+private const val LABEL_OUTLIFT = 0.09f
 
 /**
  * 每次询问抽多少张。
@@ -80,23 +105,28 @@ val NEARBY_PRESETS = listOf(5, 10, 15, 20, 30)
  * 只有 presets 里那几个值可选，手指在弧上怎么滑都会"咔"到最近的一格，
  * 所以不存在滑块那种在 20 个格子里瞄准的问题。
  * 每个档位数字自己也是可点击节点：手指能直接点中，读屏也能逐个走到。
+ *
+ * 触摸范围刻意收成轨道那一圈环带：设置页整页可滚动，旋钮要是把整个方框都吃掉，
+ * 用户在卡片里就滑不动页面了（孪生项目 ScreenshotBye 的 DetentDial 同样如此）。
  */
 @Composable
 fun DetentDial(
     label: String,
     value: Int,
     presets: List<Int>,
+    @StringRes unitRes: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    unit: String = "张",
     maxSize: Dp = 190.dp
 ) {
-    require(presets.size >= 2) { "DetentDial 至少需要两个档位" }
+    if (presets.size < 2) error(stringResource(R.string.dial_error_two_presets))
 
     val density = LocalDensity.current
     val context = LocalContext.current
+    val unit = stringResource(unitRes)
     var index by remember(presets) { mutableIntStateOf(nearestIndex(value, presets)) }
     var lastTickAt by remember { mutableLongStateOf(0L) }
+    val touchSlop = remember { ViewConfiguration.get(context).scaledTouchSlop.toFloat() }
 
     // 外部改了 value（比如重新进设置页）时跟着归位
     LaunchedEffect(value, presets) {
@@ -121,18 +151,20 @@ fun DetentDial(
     val dotColor = primary.copy(alpha = 0.35f)
     val onSurface = MaterialTheme.colorScheme.onSurface
 
-    // 两个旋钮并排放的时候分不到 190dp，所以按父级给到的宽度自适应，
-    // 圆环、刻度点、指针、数字标签全部按 dialSize 的比例算，缩小时不会挤到一起。
+    // 两个旋钮并排放的时候分不到 190dp，所以按父级给到的宽高自适应；
+    // 本体再缩到 92%，给挂在弧外侧的档位数字留出去处，标签单独占上面一行。
     BoxWithConstraints(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        val dialSize = minOf(maxSize, maxWidth)
-        val radiusPx = with(density) { (dialSize * 0.363f).toPx() }
+        val labelReserve = with(density) { 14.sp.toDp() + 6.dp }
+        val square = minOf(maxSize, maxWidth, maxHeight - labelReserve)
+        val dialSize = square * 0.92f
+        val radiusPx = with(density) { (dialSize * TRACK_RADIUS_RATIO).toPx() }
         val strokePx = with(density) { (dialSize * 0.047f).toPx() }
         val dotPx = with(density) { (dialSize * 0.013f).toPx() }
         val thumbPx = with(density) { (dialSize * 0.058f).toPx() }
-        val labelGap = with(density) { (dialSize * 0.09f).toPx() }
+        val labelGap = with(density) { (dialSize * LABEL_OUTLIFT).toPx() }
         val labelBox = dialSize * 0.19f
         val labelBoxPx = with(density) { labelBox.toPx() }
         val centerFontSize = (dialSize.value * 0.147f).sp
@@ -142,14 +174,16 @@ fun DetentDial(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // semantics 里不能直接调 stringResource（不是 composable 作用域），先在组合里取好
+            val dialDescription =
+                stringResource(R.string.dial_desc_with_label, label, presets[index], unit)
+
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleSmall,
                 color = onSurface
             )
-
-            // 最高那一档的数字标签会画到 Box 上沿之外，留出发位
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Box(
                 modifier = Modifier
@@ -157,33 +191,52 @@ fun DetentDial(
                     // 不做 mergeDescendants：一旦合并，周围那些可点击的档位节点会被吞进父节点，
                     // 读屏就只能报一个数字、没法逐档选择。
                     .semantics {
-                        contentDescription = "$label，当前 ${presets[index]} $unit"
+                        contentDescription = dialDescription
                         progressBarRangeInfo = ProgressBarRangeInfo(
                             current = index.toFloat(),
                             range = 0f..(presets.size - 1).toFloat(),
                             steps = presets.size - 1
                         )
                     }
-                    .pointerInput(presets) {
-                        detectTapGestures { position ->
-                            select(indexAt(position, centerOf(size.width, size.height), presets.size))
-                        }
-                    }
-                    .pointerInput(presets) {
-                        detectDragGestures(
-                            onDragStart = { position ->
-                                select(indexAt(position, centerOf(size.width, size.height), presets.size))
-                            },
-                            onDragEnd = { },
-                            onDragCancel = { }
-                        ) { change, _ ->
-                            select(indexAt(change.position, centerOf(size.width, size.height), presets.size))
+                    .pointerInput(presets, unit) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val sizePx = with(density) { dialSize.toPx() }
+                            val center = Offset(sizePx / 2f, sizePx / 2f)
+                            // 没按在轨道那圈上就不消费这次按下，让页面正常滚动
+                            if (!nearTrack(down.position, sizePx)) return@awaitEachGesture
+                            down.consume()
+                            var dragging = false
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (change.isConsumed) break
+                                // pressed=false 就是这一根手指离开（抬手或手势被系统抢走）
+                                if (!change.pressed) {
+                                    select(indexAt(change.position, center, presets.size))
+                                    change.consume()
+                                    return@awaitEachGesture
+                                }
+                                if (event.type == PointerEventType.Move) {
+                                    if (!dragging) {
+                                        // 没超过系统滑动阈值就先不动作，页面还留着滚动的余地
+                                        if (change.position.distanceTo(down.position) < touchSlop) {
+                                            change.consume()
+                                            continue
+                                        }
+                                        dragging = true
+                                    }
+                                    select(indexAt(change.position, center, presets.size))
+                                }
+                                change.consume()
+                            }
                         }
                     }
             ) {
                 val sizePx = with(density) { dialSize.toPx() }
+                val center = Offset(sizePx / 2f, sizePx / 2f)
 
-                Canvas(modifier = Modifier.matchParentSize()) {
+                Canvas(modifier = Modifier.size(dialSize)) {
                     val c = Offset(size.width / 2f, size.height / 2f)
                     val arcSize = Size(radiusPx * 2f, radiusPx * 2f)
                     val arcTopLeft = Offset(c.x - radiusPx, c.y - radiusPx)
@@ -229,11 +282,8 @@ fun DetentDial(
 
                 // 档位数字：既是刻度标签，也是可点击的选择项
                 presets.forEachIndexed { i, preset ->
-                    val anchor = polar(
-                        Offset(sizePx / 2f, sizePx / 2f),
-                        radiusPx + labelGap,
-                        angleFor(i, presets.size)
-                    )
+                    val anchor = polar(center, radiusPx + labelGap, angleFor(i, presets.size))
+                    val detentDescription = stringResource(R.string.dial_value_desc, preset, unit)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -252,13 +302,12 @@ fun DetentDial(
                             .semantics {
                                 role = Role.RadioButton
                                 selected = i == index
-                                contentDescription = "$preset $unit"
+                                contentDescription = detentDescription
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = preset.toString(),
-                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (i == index) FontWeight.Bold else FontWeight.Normal,
                             fontSize = detentFontSize,
                             color = if (i == index) primary else onSurface.copy(alpha = 0.55f)
@@ -273,12 +322,12 @@ fun DetentDial(
                     Text(
                         text = presets[index].toString(),
                         fontSize = centerFontSize,
-                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Normal,
                         color = primary
                     )
                     Text(
                         text = unit,
-                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = (dialSize.value * 0.068f).sp,
                         color = onSurface.copy(alpha = 0.6f)
                     )
                 }
@@ -286,6 +335,10 @@ fun DetentDial(
         }
     }
 }
+
+/** 平面距离。Compose 各版本里 Offset 的取距离写法不一致，这里自己算，省得踩坑 */
+private fun Offset.distanceTo(other: Offset): Float =
+    hypot(x - other.x, y - other.y)
 
 private fun nearestIndex(value: Int, presets: List<Int>): Int =
     presets.indices.minByOrNull { abs(presets[it] - value) } ?: 0
@@ -321,15 +374,32 @@ private fun resolveVibrator(context: Context): Vibrator? =
 private fun angleFor(index: Int, count: Int): Float =
     START_ANGLE + SWEEP_ANGLE * index / (count - 1)
 
-private fun centerOf(width: Int, height: Int): Offset =
-    Offset(width / 2f, height / 2f)
-
 private fun polar(center: Offset, radius: Float, angleDeg: Float): Offset {
     val rad = Math.toRadians(angleDeg.toDouble())
     return Offset(
         center.x + radius * cos(rad).toFloat(),
         center.y + radius * sin(rad).toFloat()
     )
+}
+
+/**
+ * 落点是否落在真的画了轨道的那段弧上：既要在环带半径内，也要在 240° 的张角内（两端各留一点余量）。
+ * 圆心读数区和方框四角都不算，好让页面在那两处能正常滚动。
+ */
+private fun nearTrack(position: Offset, dialSizePx: Float): Boolean {
+    val center = Offset(dialSizePx / 2f, dialSizePx / 2f)
+    val r = dialSizePx * TRACK_RADIUS_RATIO
+    val dist = position.distanceTo(center)
+    val inner = (r - dialSizePx * TRACK_BAND).coerceAtLeast(0f)
+    val outer = r + dialSizePx * (TRACK_BAND + LABEL_OUTLIFT)
+    if (dist !in inner..outer) return false
+
+    var deg = Math.toDegrees(
+        atan2((position.y - center.y).toDouble(), (position.x - center.x).toDouble())
+    ).toFloat()
+    if (deg < 0f) deg += 360f
+    val rel = (deg - START_ANGLE + 360f) % 360f
+    return rel <= SWEEP_ANGLE + ARC_SLACK || rel >= 360f - ARC_SLACK
 }
 
 /**
