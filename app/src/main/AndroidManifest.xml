@@ -18,6 +18,10 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- 「无感删除」用的特殊访问权限：应用不弹窗申请、不在首页催，只在设置页给一行入口，
+         由用户自己去系统页面授予。授了之后删除当场生效、不再弹系统确认框；不授就走确认框。
+         和孪生项目 ScreenshotBye 一致。 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
         android:name=".PhotosManagerApp"

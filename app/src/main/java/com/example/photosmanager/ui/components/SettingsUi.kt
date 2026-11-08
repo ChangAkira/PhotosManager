@@ -96,6 +96,9 @@ fun SectionChevron(modifier: Modifier = Modifier) {
  * 一行设置项：左标签（15sp）占满剩余宽度，右侧依次是可选的控件、当前值（13sp）和箭头。
  * 行高至少 48dp，横向内边距 16dp——和参考仓库里每个 SettingRow 的 minHeight 一样，
  * 不然同一张卡里开关行比跳转行矮一截，看着就乱了。
+ *
+ * [labelExtra] 紧跟在标题文字后面（参考仓库「无感删除」名字后面那个感叹号就是这么排的），
+ * 不传就和以前一样；它和整行的点击是分开的两件事，别挤在同一次点击里。
  */
 @Composable
 fun SettingRow(
@@ -103,6 +106,7 @@ fun SettingRow(
     modifier: Modifier = Modifier,
     value: String? = null,
     onClick: (() -> Unit)? = null,
+    labelExtra: (@Composable () -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
     Row(
@@ -113,14 +117,19 @@ fun SettingRow(
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
+        Row(
             modifier = Modifier.weight(1f),
-            fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            labelExtra?.invoke()
+        }
         trailing?.invoke()
         if (value != null) {
             Text(

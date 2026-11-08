@@ -29,6 +29,7 @@ import com.example.photosmanager.data.repository.PhotoRepository
 import com.example.photosmanager.data.repository.ReviewRepository
 import com.example.photosmanager.ui.components.ThumbnailSize
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
+import com.example.photosmanager.util.PermissionHelper
 import kotlinx.coroutines.launch
 
 class ConfirmDeleteActivity : ComponentActivity() {
@@ -92,8 +93,12 @@ class ConfirmDeleteActivity : ComponentActivity() {
             return
         }
 
-        // Android 11+需要使用MediaStore.createDeleteRequest
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        // 开了「无感删除」（Android 11+ 的「所有文件访问」）就当场生效，不再弹系统确认框；
+        // 没开才把这一批整体交给系统弹窗（一批只弹一次）。Android 10 及以下本来就没有确认弹窗。
+        val needsSystemConfirm = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+            !PermissionHelper.canDeleteWithoutConfirm(this)
+
+        if (needsSystemConfirm) {
             try {
                 val photoUris = photos.map { android.net.Uri.parse(it) }
                 val deleteRequest = android.provider.MediaStore.createDeleteRequest(
@@ -115,7 +120,7 @@ class ConfirmDeleteActivity : ComponentActivity() {
                 performActualDelete(photos)
             }
         } else {
-            // Android 10及以下，直接删除
+            // 无感删除已授予，或 Android 10 及以下：直接删，不弹系统框
             performActualDelete(photos)
         }
     }

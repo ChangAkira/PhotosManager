@@ -24,23 +24,29 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -48,6 +54,10 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.service.BackgroundService
@@ -63,13 +73,15 @@ import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
 import com.example.photosmanager.ui.theme.Palette
 import com.example.photosmanager.ui.theme.PaletteCatalog
 import com.example.photosmanager.ui.theme.ThemeState
+import com.example.photosmanager.util.PermissionHelper
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * 设置页四块，和孪生项目 ScreenshotBye 的分卡方式一致：
- * ① 启用服务（独立一卡，只有一个开关行）②旋钮 ③免打扰时段 ④主题颜色 + 次级入口。
+ * 设置页五块，和孪生项目 ScreenshotBye 的分卡方式一致：
+ * ① 启用服务（独立一卡，只有一个开关行）②旋钮 ③无感删除 ④免打扰时段 ⑤主题颜色 + 次级入口。
  * 次级页面（相册、使用引导、关于）收进最后一张卡，免得几十本相册把开关和旋钮挤出首屏。
+ * ③ 只在 Android 11 及以上出现——那一版以下没有「所有文件访问」，本来也不弹确认框。
  */
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +117,22 @@ fun SettingsScreen(onBack: () -> Unit) {
         .collectAsState(initial = PreferencesRepository.DEFAULT_DND_END)
     val enabledAlbums by preferencesRepository.enabledAlbums
         .collectAsState(initial = emptySet())
+
+    // 「无感删除」读的是系统里的实测状态，不进 DataStore：用户在系统授权页可能开、可能关、
+    // 也可能原样返回，所以每次回到本页（ON_RESUME）重新问一次，别停在进页时那个旧读数上。
+    var allFilesGranted by remember {
+        mutableStateOf(PermissionHelper.canDeleteWithoutConfirm(context))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                allFilesGranted = PermissionHelper.canDeleteWithoutConfirm(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -179,7 +207,57 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            // ③ 免打扰时段：只管"下一次亮屏要不要浮出来"
+            // ③ 无感删除：授了「所有文件访问」就跳过系统确认弹窗。Android 11 以下没有这一项，整卡不出现
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                item {
+                    var showCostDialog by remember { mutableStateOf(false) }
+                    PaletteCard {
+                        SettingRow(
+                            label = stringResource(R.string.settings_all_files),
+                            // 感叹号只管说明代价，整行点进去才是系统授权页——两件事别挤在同一次点击里
+                            labelExtra = {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_warning),
+                                    contentDescription = stringResource(R.string.settings_all_files_warn),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 2.dp)
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .clickable { showCostDialog = true }
+                                        .padding(4.dp)
+                                )
+                            },
+                            // 行尾只承诺这一项权限真正改变的东西：不弹系统确认框。
+                            // 原件去哪了由系统定，而三方应用查不到答案，所以这里一个字都不提回收站。
+                            value = stringResource(
+                                if (allFilesGranted) R.string.settings_all_files_on
+                                else R.string.settings_all_files_off
+                            ),
+                            onClick = { PermissionHelper.openAllFilesAccess(context) }
+                        )
+                    }
+                    if (showCostDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showCostDialog = false },
+                            title = { Text(stringResource(R.string.settings_all_files_warn_title)) },
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.settings_all_files_warn_body),
+                                    fontSize = 13.sp
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showCostDialog = false }) {
+                                    Text(stringResource(R.string.settings_all_files_warn_ok))
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // ④ 免打扰时段：只管"下一次亮屏要不要浮出来"
             item {
                 PaletteCard {
                     SettingRow(
@@ -235,7 +313,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            // ④ 主题颜色 + 次级入口
+            // ⑤ 主题颜色 + 次级入口
             item {
                 PaletteCard(contentPadding = PaddingValues(vertical = 12.dp)) {
                     SectionTitle(stringResource(R.string.settings_theme))

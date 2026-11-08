@@ -52,6 +52,17 @@
     <string name="main_open_guide">使用引导</string>
     <string name="settings_about">关于</string>
 
+    <!-- 无感删除（= Android 11+ 的「所有文件访问」），文案与孪生项目 ScreenshotBye 一字不差 -->
+    <string name="settings_all_files">无感删除</string>
+    <!-- 开启后唯一确定的是「不弹系统确认框」。原件去向三方应用查不到（真删与搬进隐藏回收站
+         在媒体库里是同一个表现），所以这里不提回收站，代价全在感叹号那段说明里 -->
+    <string name="settings_all_files_on">已开启 · 不弹确认</string>
+    <string name="settings_all_files_off">未授予</string>
+    <string name="settings_all_files_warn">无感删除的代价说明</string>
+    <string name="settings_all_files_warn_title">无感删除的代价</string>
+    <string name="settings_all_files_warn_body">开了它，删除当场生效、不再弹系统确认框。某些系统上被删的照片不会进相册回收站，删掉就彻底没了，请谨慎开启。\n\n至于这台机器会不会进回收站，本应用查不出来，所以界面上一律不写。原因：原生安卓是直接从媒体库抹掉；有的系统会认账，把条目标成「已回收」，这种能确认；更多定制系统（比如小米把文件挪进 DCIM/.globalTrash 这类不被媒体库索引的目录）会让条目和原路径一起消失——这跟「真删了」在应用侧长得一模一样，分不出来。\n\n想知道某张还能不能找回，只能去相册的回收站看一眼。用不带无感删除的那条路（系统弹窗确认）删的，才是明确交给系统回收站的。</string>
+    <string name="settings_all_files_warn_ok">知道了</string>
+
     <!-- 配色名称 -->
     <string name="palette_beige">米白</string>
     <string name="palette_slate">青灰</string>
@@ -67,7 +78,7 @@
     <!-- 关于页 -->
     <string name="about_title">关于</string>
     <string name="about_version">版本 %1$s (%2$d)</string>
-    <string name="about_body">PhotosManager 做的事情很小：每次你点亮屏幕，它从你选好的相册里挑几张照片出来，你只判断一句「要」或「不要」。判断过的不再重复出现，觉得某张值得再看时，可以把它附近的几张一起拉进这一轮。\n\n删除由系统在弹窗里确认，本应用不保存照片副本，卸载也不会带走你的相册。</string>
+    <string name="about_body">PhotosManager 做的事情很小：每次你点亮屏幕，它从你选好的相册里挑几张照片出来，你只判断一句「要」或「不要」。判断过的不再重复出现，觉得某张值得再看时，可以把它附近的几张一起拉进这一轮。\n\n删除默认由系统在弹窗里确认（设置页可以开「无感删除」跳过这一步），本应用不保存照片副本，卸载也不会带走你的相册。</string>
 
     <!-- 确认删除页 -->
     <string name="confirm_title">确认删除</string>
@@ -108,7 +119,7 @@
         <item>相册里攒着大量只看过的照片，但专门腾出时间去清理总也排不上。这个应用换个办法：每次你点亮屏幕的那十几秒，随机拿出几张照片（默认 5 张，可选 3／5／8／10／15／20），你只判断要不要留下。</item>
         <item>亮屏后浮窗里一张一张过：保留、删除，或者点「附近」把这张左右的几张一起拉进本轮——无用照片的附近往往也是无用照片。判断过的不会再出现，一轮走完会告诉你这批一共多少张。</item>
         <item>读取相册：不授权看不到照片。通知：不授权服务跑不住。悬浮窗：亮屏时那层界面靠它。缺任一项，应用都会在首页把「请求权限」按钮留着，点一下就能补齐。</item>
-        <item>你在浮窗里选「删除」只是把它们标出来，进确认页再看一遍、可以反选，最后由系统在弹窗里确认。本应用不保存照片副本，也不替你决定什么该留。</item>
+        <item>你在浮窗里选「删除」只是把它们标出来，进确认页再看一遍、可以反选，最后交给系统删除——默认还会弹一次系统确认框，设置里的「无感删除」可以跳过这一步。本应用不保存照片副本，也不替你决定什么该留。</item>
         <item>进设置页：先选好要管理的相册，再定每次显示几张、加入附近几张，最后打开顶部的「启用服务」。之后每次亮屏都会是新一轮整理。</item>
     </string-array>
 
