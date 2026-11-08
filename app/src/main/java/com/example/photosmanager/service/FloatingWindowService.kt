@@ -2,86 +2,45 @@ package com.example.photosmanager.service
 
 import android.app.Service
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
-import com.example.photosmanager.R
 import com.example.photosmanager.ui.floating.FloatingWindowManager
 
+/**
+ * 只在亮屏时被 BackgroundService 拉起来，挂上那一层整理界面。
+ *
+ * 它以前是前台服务，代价是多一条常驻通知（「照片管理界面」）。
+ * 界面挂在 WindowManager 上，跟服务是不是前台服务没关系，只跟进程活着有没有人管有关系——
+ * 进程由 BackgroundService 那条前台服务保着，所以这里降级成普通服务，通知就少一条。
+ */
 class FloatingWindowService : Service() {
     private var floatingWindowManager: FloatingWindowManager? = null
 
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-        try {
-            startForeground(NOTIFICATION_ID, createNotification())
-        } catch (e: Exception) {
-            android.util.Log.e("FloatingWindowService", "启动前台服务失败", e)
-        }
-    }
-
-    private fun createNotificationChannel() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = android.app.NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.ch_float),
-                android.app.NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.ch_float_desc)
-                setShowBadge(false)
-            }
-            val notificationManager = getSystemService(android.app.NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            android.util.Log.d("FloatingWindowService", "onStartCommand 被调用")
             if (floatingWindowManager == null) {
-                android.util.Log.d("FloatingWindowService", "创建 FloatingWindowManager")
                 floatingWindowManager = FloatingWindowManager(this)
             }
             // 每次调用都尝试显示（如果已经显示会先关闭再显示）
-            android.util.Log.d("FloatingWindowService", "调用 show() 显示悬浮窗")
             floatingWindowManager?.show()
         } catch (e: Exception) {
             android.util.Log.e("FloatingWindowService", "启动悬浮窗失败", e)
             e.printStackTrace()
         }
-        // 使用 START_STICKY 确保服务被系统杀死后能重启
-        return START_STICKY
+        // 不 START_STICKY：这本来就是个用完即走的界面，重启后凭空再弹一次反而莫名其妙
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // 当任务被移除时，关闭悬浮窗但不停止服务
-        android.util.Log.d("FloatingWindowService", "任务被移除，关闭悬浮窗")
+        // 当任务被移除时，收起界面
         floatingWindowManager?.dismiss()
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
-        android.util.Log.d("FloatingWindowService", "onDestroy 被调用")
         floatingWindowManager?.dismiss()
         floatingWindowManager = null
-        // 注意：这里不停止服务，让服务继续运行以便下次显示
-    }
-
-    private fun createNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setContentTitle(getString(R.string.app_name))
-        .setContentText(getString(R.string.notif_floating_body))
-        .setSmallIcon(R.drawable.ic_launcher_foreground)
-        .setOngoing(true)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
-        .build()
-
-    companion object {
-        private const val CHANNEL_ID = "floating_window_channel"
-        private const val NOTIFICATION_ID = 1002
     }
 }
-

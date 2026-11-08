@@ -21,12 +21,12 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 ## 一次亮屏会发生什么
 
 1. 你在设置里勾选要管理的相册，打开**启用服务**。
-2. 之后每次屏幕点亮，`ScreenMonitorService` 收到 `ACTION_SCREEN_ON`，延迟 300ms 后拉起悬浮窗。开了**免打扰时段**的话，落在这个区间里的亮屏直接跳过，什么都不弹。
+2. 之后每次屏幕点亮，常驻的 `BackgroundService` 里那个 `ACTION_SCREEN_ON` 接收器收到广播，延迟 300ms 后拉起整理界面。开了**免打扰时段**的话，落在这个区间里的亮屏直接跳过，什么都不弹。
 3. 屏幕底部弹出约占 75% 高度的卡片，随机展示 N 张（默认 5 张）照片，显示"当前第几张 / 共几张"和来源相册。
-4. 每张只有三个动作：
+4. 每张只有三个动作，从左到右排在**保留 · 附近 · 删除**：
    - **保留** —— 不做任何处理，下一张
-   - **删除** —— 标记待删，下一张
    - **附近** —— 把这张照片前后相邻的几张也拉进本轮队列（只能对随机抽中的照片点，拉进来的不再展开，避免一轮无限膨胀）
+   - **删除** —— 标记待删，下一张
 5. 左右滑动切换照片（滑动超过屏宽 10% 生效）。
 6. 一轮结束后进入**确认删除**页，缩略图逐张列出，可以反选取消——取消勾选的照片不会被删除，也会退回待整理池子。
 7. 点确认后才真正删除。Android 11 及以上走系统原生的 `MediaStore.createDeleteRequest()`，你会再看到一次系统级确认框——应用绝不会静默删掉任何一张照片。
@@ -86,7 +86,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 到 [Releases](../../releases) 下载 `PhotosManager-v1.10.apk`，安装时系统会提示"未知来源应用"，允许即可。
 
-master 上还有几条没打包的改动（「正文颜色不再跟着主题配色走」、新增可选的「无感删除」），会和后面几条攒成一个版本一起发。
+master 上还有几条没打包的改动（「正文颜色不再跟着主题配色走」、新增可选的「无感删除」、常驻通知从三条并成一条、整理界面三个按钮改成 保留 / 附近 / 删除），会和后面几条攒成一个版本一起发。
 
 覆盖升级要求签名一致，本仓库发布的 APK 从 v1.1 起使用同一把签名密钥（见文末）。
 
@@ -99,8 +99,8 @@ master 上还有几条没打包的改动（「正文颜色不再跟着主题配�
 | 读取照片（`READ_MEDIA_IMAGES` / 旧版存储权限） | 查询相册、显示缩略图 | 必需 |
 | 所有文件访问（`MANAGE_EXTERNAL_STORAGE`） | 无感删除：跳过系统确认弹窗 | **可选**，默认不开；应用不弹窗申请，只能用户自己在系统页面里授予 |
 | 悬浮窗（`SYSTEM_ALERT_WINDOW`） | 亮屏弹出的那张照片卡片就是悬浮窗 | 必需，需手动到系统设置里授予 |
-| 通知（`POST_NOTIFICATIONS`） | 三个前台服务的常驻通知 | 必需（Android 13+） |
-| 前台服务 `specialUse` | 亮屏监听需要长期在后台运行 | 必需 |
+| 通知（`POST_NOTIFICATIONS`） | 常驻的只有一条「后台服务运行中」，另有一条是删完照片后的结果提醒 | 必需（Android 13+） |
+| 前台服务 `specialUse` | 亮屏时提醒你整理照片，需要长期在后台运行 | 必需 |
 | `WAKE_LOCK` | `BackgroundService` 持有 partial wakelock 保活 | 必需 |
 | `VIBRATE` | 设置页旋钮切档时的那一下触感反馈 | 可选，只为手感；普通权限，安装时自动授予。走应用自己的短震动，不依赖系统"触摸反馈"开关 |
 | 忽略电池优化 | 防止被系统杀掉 | 建议，不授权也能用，只是亮屏可能不弹 |
@@ -113,7 +113,7 @@ master 上还有几条没打包的改动（「正文颜色不再跟着主题配�
 - 系统要求：Android 7.0（API 24）— Android 16（targetSdk 36）
 - 删除方式：Android 11+ 使用系统删除请求；Android 10 及以下直接通过 `ContentResolver` 删除
 - 悬浮窗：Android 8+ 用 `TYPE_APPLICATION_OVERLAY`，更低版本回退到 `TYPE_PHONE`
-- 国产 ROM（MIUI / EMUI / ColorOS 等）后台限制较严，需要手动放行自启动，否则亮屏监听可能不触发——应用内已有引导提示
+- 国产 ROM（MIUI / EMUI / ColorOS 等）后台限制较严，需要手动放行自启动，否则亮屏可能不弹整理界面——应用内已有引导提示
 
 ## 已知限制
 
@@ -124,7 +124,7 @@ master 上还有几条没打包的改动（「正文颜色不再跟着主题配�
 - **完成页没有"暂时别弹了"**：相册全部判断完之后，每次亮屏都会看到完成页，直到你去设置里关掉服务、换相册，或者显式重开一轮。
 - **免打扰只管"下一次亮屏"**：判定发生在 `ACTION_SCREEN_ON` 那一刻，悬浮窗已经弹出来的话，进入免打扰时段不会自动收起，得手动关掉。
 - **应用内没有回收站**：删除即从媒体库移除，只能依赖系统相册自带的"最近删除"。
-- **三条常驻通知无法关闭**（屏幕监听 / 悬浮窗 / 后台服务各一条）。
+- **通知栏常驻一条**「后台服务运行中」：Android 8 起前台服务必须挂一条通知，这条去不掉。以前有三个前台服务、三条通知，现在亮屏的广播接收器收进了 `BackgroundService`、整理界面降级成普通服务，只剩这一条。
 - **大相册一次性全量载入内存**，几万张照片时会有明显延迟。
 - 界面文案已全部收进 `res/values/strings.xml`，但只提供中文一套，未做国际化。
 - 登录 / 兑换码模块（`auth/`）是未启用的占位代码，`LoginActivity` 连 Manifest 都没注册，不影响任何功能。
@@ -172,7 +172,7 @@ Kotlin 2.0.21 · Jetpack Compose (BOM 2024.09.00) · Material 3 · Room 2.6.1 ·
 
 ```
 app/src/main/java/com/example/photosmanager/
-├── service/     ScreenMonitorService（亮屏监听）、FloatingWindowService（悬浮窗）、BackgroundService（保活）
+├── service/     BackgroundService（唯一的前台服务，亮屏广播也在它里面）、FloatingWindowService（普通服务，挂/收整理界面）
 ├── ui/floating/ FloatingWindowManager（窗口管理）、FloatingWindowContent（卡片 UI 与决策逻辑）
 ├── ui/          confirm（批量确认删除）、settings（含旋钮与选择器）、onboarding、about、components（卡片/行等共用样式）
 ├── data/        Room 实体与 DAO、PhotoRepository（MediaStore 查询与删除）、PreferencesRepository

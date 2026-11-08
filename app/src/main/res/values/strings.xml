@@ -8,17 +8,14 @@
       也不会出现"这一句在 A 页是硬编码、在 B 页又是另一套说法"。
     -->
 
-    <!-- 通知渠道与服务通知：渠道名和正文都放这里，系统通知设置里看到的就是这些字 -->
-    <string name="ch_service">照片管理</string>
-    <string name="ch_service_desc">删除完成一类的结果提醒</string>
-    <string name="ch_screen">屏幕监听</string>
-    <string name="ch_screen_desc">亮屏监听是否在运行</string>
-    <string name="ch_float">悬浮窗服务</string>
-    <string name="ch_float_desc">整理界面是否在显示</string>
+    <!-- 通知渠道与服务通知：渠道名和正文都放这里，系统通知设置里看到的就是这些字。
+         常驻通知只有 background_service_channel 一条；以前那两个前台服务的渠道
+         由 BackgroundService 启动时 deleteNotificationChannel 清掉，别在系统设置里留下两个空渠道。
+         措辞上不用「监听」这类词——不懂技术的人看到会以为应用在盯着屏幕。 -->
+    <string name="ch_service">照片整理结果</string>
+    <string name="ch_service_desc">删完一批照片之后的结果提醒</string>
     <string name="ch_bg">后台服务</string>
-    <string name="ch_bg_desc">PhotosManager 后台常驻服务</string>
-    <string name="notif_screen_watch_body">屏幕监听服务运行中</string>
-    <string name="notif_floating_body">照片管理界面</string>
+    <string name="ch_bg_desc">应用在后台运行，亮屏时提醒你整理照片</string>
     <string name="notif_background_body">后台服务运行中</string>
     <string name="notif_deleted_body">已删除 %1$d 张照片</string>
 
@@ -30,10 +27,10 @@
     <string name="home_request_perms_done">权限已授予</string>
     <string name="home_open_settings">设置</string>
     <string name="home_battery_title">电池优化</string>
-    <string name="home_battery_body">设为「无限制」，否则亮屏监听被系统清掉后，悬浮窗不会再出现</string>
+    <string name="home_battery_body">设为「无限制」，否则应用被系统清掉后，亮屏时不会再提醒你整理照片</string>
     <string name="home_battery_settings">前往设置</string>
     <string name="home_autostart_title">自启动</string>
-    <string name="home_autostart_body">请允许自启动与后台活动，否则监听服务会被杀掉</string>
+    <string name="home_autostart_body">请允许自启动与后台活动，否则应用被杀掉后，亮屏就不会再提醒</string>
 
     <!-- 设置页 -->
     <string name="settings_title">设置</string>
@@ -117,9 +114,9 @@
 
     <string-array name="onb_bodies">
         <item>相册里攒着大量只看过的照片，但专门腾出时间去清理总也排不上。这个应用换个办法：每次你点亮屏幕的那十几秒，随机拿出几张照片（默认 5 张，可选 3／5／8／10／15／20），你只判断要不要留下。</item>
-        <item>亮屏后浮窗里一张一张过：保留、删除，或者点「附近」把这张左右的几张一起拉进本轮——无用照片的附近往往也是无用照片。判断过的不会再出现，一轮走完会告诉你这批一共多少张。</item>
-        <item>读取相册：不授权看不到照片。通知：不授权服务跑不住。悬浮窗：亮屏时那层界面靠它。缺任一项，应用都会在首页把「请求权限」按钮留着，点一下就能补齐。</item>
-        <item>你在浮窗里选「删除」只是把它们标出来，进确认页再看一遍、可以反选，最后交给系统删除——默认还会弹一次系统确认框，设置里的「无感删除」可以跳过这一步。本应用不保存照片副本，也不替你决定什么该留。</item>
+        <item>亮屏后弹出的整理界面里一张一张过：要留着点「保留」，想连旁边几张一起看就点「附近」，不要就点「删除」——没用照片的附近往往也是没用照片。判断过的不会再出现，一轮走完会告诉你这批一共多少张。</item>
+        <item>读取相册：不授权看不到照片。通知：不授权应用在后台跑不住。显示在其他应用上层：亮屏时那层整理界面靠它。缺任一项，应用都会在首页把「请求权限」按钮留着，点一下就能补齐。</item>
+        <item>你在整理界面里选「删除」只是把它们标出来，进确认页再看一遍、可以反选，最后交给系统删除——默认还会弹一次系统确认框，设置里的「无感删除」可以跳过这一步。本应用不保存照片副本，也不替你决定什么该留。</item>
         <item>进设置页：先选好要管理的相册，再定每次显示几张、加入附近几张，最后打开顶部的「启用服务」。之后每次亮屏都会是新一轮整理。</item>
     </string-array>
 

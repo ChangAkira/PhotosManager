@@ -478,6 +478,7 @@ fun PhotoViewerContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
+            // 顺序按用户习惯排：保留 → 附近 → 删除
             Button(
                 onClick = { onAction(PhotoAction.KEEP) },
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
@@ -486,18 +487,18 @@ fun PhotoViewerContent(
             }
 
             Button(
-                onClick = { onAction(PhotoAction.MARK_DELETE) },
-                modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
-            ) {
-                Text(stringResource(R.string.float_delete))
-            }
-
-            Button(
                 onClick = { onAction(PhotoAction.VIEW_NEARBY) },
                 enabled = nearbyEnabled,
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
             ) {
                 Text(stringResource(R.string.float_nearby))
+            }
+
+            Button(
+                onClick = { onAction(PhotoAction.MARK_DELETE) },
+                modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+            ) {
+                Text(stringResource(R.string.float_delete))
             }
         }
 

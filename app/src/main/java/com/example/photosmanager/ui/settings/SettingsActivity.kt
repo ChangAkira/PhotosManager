@@ -62,7 +62,6 @@ import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.service.BackgroundService
 import com.example.photosmanager.service.FloatingWindowService
-import com.example.photosmanager.service.ScreenMonitorService
 import com.example.photosmanager.ui.about.AboutActivity
 import com.example.photosmanager.ui.components.PaletteCard
 import com.example.photosmanager.ui.components.SectionDivider
@@ -362,22 +361,22 @@ fun SettingsScreen(onBack: () -> Unit) {
     }
 }
 
+/**
+ * 打开「启用服务」只启动一个前台服务：亮屏的广播接收器在它里面，整理界面是它拉起来的普通服务。
+ * 以前这里同时 startForegroundService 三个，通知栏就多三条，用户看到的是一模一样的应用名重复三遍。
+ */
 private fun startServices(context: Context) {
-    val targets = listOf(BackgroundService::class.java, ScreenMonitorService::class.java)
-    targets.forEach { service ->
-        val intent = Intent(context, service)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
+    val intent = Intent(context, BackgroundService::class.java)
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        context.startForegroundService(intent)
+    } else {
+        context.startService(intent)
     }
 }
 
 private fun stopServices(context: Context) {
     listOf(
         BackgroundService::class.java,
-        ScreenMonitorService::class.java,
         FloatingWindowService::class.java
     ).forEach { context.stopService(Intent(context, it)) }
 }

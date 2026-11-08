@@ -85,29 +85,15 @@
             android:excludeFromRecents="true"
             android:launchMode="standard" />
         
-        <!-- 屏幕监听服务 -->
-        <service
-            android:name=".service.ScreenMonitorService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="照片管理-屏幕监听" />
-        </service>
-        
-        <!-- 悬浮窗服务 -->
+        <!-- 整理界面（亮屏时那一层）。普通服务，不是前台服务：
+             它只在亮屏时被 BackgroundService 拉起来挂一层界面，进程由那个前台服务保住。
+             以前它自己也是前台服务，代价是通知栏多出一条只写着应用名的常驻通知。 -->
         <service
             android:name=".service.FloatingWindowService"
             android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="照片管理-悬浮窗" />
-        </service>
-        
-        <!-- 后台常驻服务 -->
+            android:exported="false" />
+
+        <!-- 唯一的常驻前台服务：保活 + 亮屏时拉起整理界面，通知栏只有它这一条 -->
         <service
             android:name=".service.BackgroundService"
             android:enabled="true"
@@ -115,7 +101,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="照片管理-后台服务" />
+                android:value="照片管理-亮屏时整理照片" />
         </service>
     </application>
 

@@ -24,7 +24,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.service.BackgroundService
-import com.example.photosmanager.service.ScreenMonitorService
 import com.example.photosmanager.ui.components.PaletteCard
 import com.example.photosmanager.ui.onboarding.OnboardingActivity
 import com.example.photosmanager.ui.settings.SettingsActivity
@@ -156,8 +155,8 @@ class MainActivity : ComponentActivity() {
         scope.launch {
             try {
                 if (preferencesRepository.isServiceEnabled.first()) {
+                    // 只有一个常驻前台服务：亮屏的广播接收器已经并进去，不再单独占一条通知
                     startBackgroundService()
-                    startScreenMonitorService()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("MainActivity", "检查服务状态失败", e)
@@ -175,19 +174,6 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "启动后台服务失败", e)
-        }
-    }
-
-    private fun startScreenMonitorService() {
-        try {
-            val intent = Intent(this, ScreenMonitorService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "启动屏幕监听服务失败", e)
         }
     }
 }
