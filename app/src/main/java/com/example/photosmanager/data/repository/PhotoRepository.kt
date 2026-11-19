@@ -220,6 +220,29 @@ class PhotoRepository(private val context: Context) {
     }
     
 
+    /**
+     * 这批 URI 里有几个已经不在媒体库里了。
+     *
+     * 删除计数不能读 `contentResolver.delete` 返回了几行：走系统确认框的那一批是系统
+     * 删掉的，回到应用再补一刀只会拿到 0 行，看着和失败一模一样。"还在不在" 才是
+     * 两条路径都成立的读数。解析不出 ID 的按"还在"算——宁可少计，也不凭空报喜。
+     */
+    suspend fun countGonePhotos(uris: List<String>): Int = withContext(Dispatchers.IO) {
+        val ids = uris.mapNotNull { uri ->
+            runCatching { ContentUris.parseId(android.net.Uri.parse(uri)) }.getOrNull()
+        }
+        if (ids.isEmpty()) return@withContext 0
+        val selection = "${MediaStore.Images.Media._ID} IN (${ids.joinToString(",") { "?" }})"
+        val stillThere = context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Images.Media._ID),
+            selection,
+            ids.map { it.toString() }.toTypedArray(),
+            null
+        )?.use { it.count } ?: ids.size
+        (ids.size - stillThere).coerceAtLeast(0)
+    }
+
     suspend fun getTotalDeletedCount(): Long {
         return database.deletedPhotoDao().getTotalDeletedCount()
     }

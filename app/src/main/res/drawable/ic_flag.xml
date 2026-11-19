@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 相册选择页长按后插在选框前面的小旗。和 ic_warning 一样直接从 Material 图标集取的路径，
+     不用 material-icons-extended 依赖（那是几十 MB 的图标包）。
+     fillColor 写死黑色没关系：它总是通过 Compose 的 Icon(tint=…) 上色，tint 会覆盖路径色。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M14.4,6L14,4H5v17h2v-7h5.6l0.4,2h7V6z" />
+</vector>

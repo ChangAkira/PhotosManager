@@ -59,7 +59,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 | 加入附近 | 吸附式档位旋钮（与"每次显示"并排） | 5 / 10 / 15 / 20 / 30 | 10 |
 | 无感删除 | 一行，点进去是系统授权页（Android 11+ 才出现） | 未授予 / 已开启 · 不弹确认 | 未授予，行尾读的是系统里的实测状态 |
 | 免打扰时段 | 开关 + 起止时间 | 任意时刻，可跨午夜 | 关（22:00 — 07:00） |
-| 相册设置 | 次级页面多选 | 设备上全部相册 | 空 |
+| 相册设置 | 次级页面多选，长按一行可插旗 | 设备上全部相册 | 空（旗标也是空） |
 | 主题颜色 | 色块单选 | 米白 / 青灰 / 陶土 / 靛蓝 / 石墨 | 米白 |
 | 使用引导 | 二级入口 | 五页滑动 | — |
 | 关于 | 二级入口 | 应用名、版本号、一句话说明 | — |
@@ -76,7 +76,11 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 
 **免打扰时段**只影响一件事：这段时间里亮屏不弹悬浮窗。起止时间用系统的时间选择器改，结束时间早于开始时间就是跨午夜（默认 22:00 — 07:00）。开关关掉时这个区间完全不参与判断。
 
-**深色模式跟随系统**，应用里没有"夜间模式"开关：系统开深色，设置页、悬浮窗、确认删除页就都是深色。每个主题都成对准备了亮色和暗色两套配色，所以换主题和换深浅色互不干扰。
+**相册设置**里点一行仍然是勾选／取消勾选。长按一行是给这个相册做记号：按住的时候整行从左边铺起一条灰色进度条，铺满的那一瞬间长按才成立，选框前面多一面小旗；再长按一次取掉。进度条的时长取的就是系统判定长按成立要按住多久那个读数，所以"铺满"和"生效"是同一刻；中途松手进度条退回去，什么都不会改。在列表上上下滑动不会误铺这条进度条——Compose 会把按压推迟到确认这不是滚动之后再发。旗标只是留在本机的一个记号，用来标"这个相册还没清完"，抽取照片时不看它。
+
+**删除计数**也是存在本机的一个数：每次在确认页删掉的张数累加进去，每跨过一百发一条喜报「已帮您删除超过 xxx 张图片啦」。一次跨过好几个百只报最高的那一个（190 → 305 只报 300），通知用固定 id，新的盖掉旧的，不会在通知栏攒出一串。它走「照片整理结果」这条渠道，和常驻的「后台服务运行中」不是同一条，想安静可以在系统设置里把它单独关掉。
+
+**深色模式跟随系统**，应用里没有"夜间模式"开关：系统开深色，设置页、悬浮窗、确认删除页就都是深色。每个主题都成对准备了亮色和暗色两套配色，所以换主题和换深浅色互不干扰。整理卡片那一层不是 Activity，是直接挂在 `WindowManager` 上的一块 `ComposeView`，主题和正文颜色都得自己带：`MaterialTheme` 只往下发 colorScheme / typography / shapes，正文颜色那个 `LocalContentColor` 是 `Scaffold`、`Surface` 负责提供的，裸的 `ComposeView` 两个都不是，于是所有没写死颜色的图标和文字全退回默认的黑色——深色下右上角那枚叉号就是黑底上一个黑叉。现在这一层进来先把正文色按主题的 `onSurface` 铺好，叉号、文字跟着深浅色一起翻。
 
 **底色和文字都不跟着主题走**。Material 的 34 个角色分成两层：控件层（primary / secondary / tertiary / error 和各自的容器，共 17 个）跟着主题换；中性层（页面、卡片、各级容器、正文与次要文字、分隔线，同样 17 个）五套配色共用一套不带色温的灰阶——页面 `#F6F5F4` / 深色 `#171718`，卡片 `#EEEDEB` / `#2F2E30`，正文 `#474645` / `#E4E3E1`，次要文字 `#656462` / `#C5C4C2`。之前 34 个角色是全按配色摊开的，米白下正文是暖棕 `#5C5247`、靛蓝下是冷蓝 `#3D4063`，换主题看起来像连字体颜色一起换了；现在换主题只会换掉按钮、开关、旋钮指针这些控件。孪生项目 ScreenshotBye 用 `colors_neutral.xml` 做同一件事，两边取值一一对应，改一处要同步改另一处。
 
@@ -97,7 +101,7 @@ PhotosManager 的思路是不给你整块时间：**每次点亮屏幕，它随�
 | 读取照片（`READ_MEDIA_IMAGES` / 旧版存储权限） | 查询相册、显示缩略图 | 必需 |
 | 所有文件访问（`MANAGE_EXTERNAL_STORAGE`） | 无感删除：跳过系统确认弹窗 | **可选**，默认不开；应用不弹窗申请，只能用户自己在系统页面里授予 |
 | 悬浮窗（`SYSTEM_ALERT_WINDOW`） | 亮屏弹出的那张照片卡片就是悬浮窗 | 必需，需手动到系统设置里授予 |
-| 通知（`POST_NOTIFICATIONS`） | 常驻的只有一条「后台服务运行中」，另有一条是删完照片后的结果提醒 | 必需（Android 13+） |
+| 通知（`POST_NOTIFICATIONS`） | 常驻只有一条「后台服务运行中」；另一条不常驻，是累计删除数破整百时的那条喜报 | 必需（Android 13+） |
 | 前台服务 `specialUse` | 亮屏时提醒你整理照片，需要长期在后台运行 | 必需 |
 | `WAKE_LOCK` | `BackgroundService` 持有 partial wakelock 保活 | 必需 |
 | `VIBRATE` | 设置页旋钮切档时的那一下触感反馈 | 可选，只为手感；普通权限，安装时自动授予。走应用自己的短震动，不依赖系统"触摸反馈"开关 |
@@ -182,6 +186,8 @@ app/src/main/java/com/example/photosmanager/
 PhotosManager turns the seconds you spend unlocking your phone into album cleanup. Once the service is enabled, every screen wake pops up a floating card over the lock screen area showing a handful of random photos from the albums you picked. Swipe through with one tap each: keep, mark for deletion, or pull in neighbouring shots (burst photos usually sit next to other junk). At the end of the round you review the marked list and confirm — on Android 11+ the actual deletion goes through the system `MediaStore.createDeleteRequest()` dialog, so nothing is ever removed silently. Once the confirm screen is done it returns you to whatever app you were looking at, not to the home screen, and when you have been through every photo in the selected albums the card shows an explicit "all done" page instead of quietly starting over.
 
 No network access, no accounts, no analytics: photos, settings and deletion history stay on the device. Requires the overlay permission and runs foreground services to catch screen-on broadcasts, which is why there are persistent notifications.
+
+Two more things live only on the device: in the album picker you can long-press a row — a gray bar wipes across it until the system's long-press threshold is reached — to plant a small flag as a personal marker (the flag never affects which photos get pulled), and the app keeps a running count of how many photos it has helped you delete, posting one celebratory notification each time that count crosses the next hundred.
 
 ## License
 

@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "photos_manager_prefs")
@@ -26,6 +27,8 @@ class PreferencesRepository(private val context: Context) {
         private val KEY_DND_ENABLED = booleanPreferencesKey("dnd_enabled")
         private val KEY_DND_START = intPreferencesKey("dnd_start_minute")
         private val KEY_DND_END = intPreferencesKey("dnd_end_minute")
+        private val KEY_FLAGGED_ALBUMS = stringSetPreferencesKey("flagged_albums")
+        private val KEY_TOTAL_DELETED = intPreferencesKey("total_deleted_photos")
         
         // 默认值
         const val DEFAULT_PHOTOS_PER_SESSION = 5
@@ -34,6 +37,21 @@ class PreferencesRepository(private val context: Context) {
         const val DEFAULT_DND_START = 22 * 60
         const val DEFAULT_DND_END = 7 * 60
         const val DEFAULT_THEME_PALETTE = "beige"
+
+        /** 删除总数每破一个整百，发一条庆祝通知 */
+        const val DELETED_MILESTONE_STEP = 100
+
+        /**
+         * 这批删除有没有跨过一个整百，跨过了要报哪个数。
+         * 一次删超 100 张只会报最高那个百（比如 190 → 305 只报 300），
+         * 连着弹两条一样的喜报没意义。
+         */
+        fun deletedMilestone(before: Int, after: Int): Int? {
+            if (after <= before) return null
+            val reached = after / DELETED_MILESTONE_STEP
+            return if (reached > before / DELETED_MILESTONE_STEP && reached > 0)
+                reached * DELETED_MILESTONE_STEP else null
+        }
     }
 
     val photosPerSession: Flow<Int> = context.dataStore.data.map { preferences ->
@@ -77,6 +95,33 @@ class PreferencesRepository(private val context: Context) {
 
     val dndEndMinute: Flow<Int> = context.dataStore.data.map { preferences ->
         preferences[KEY_DND_END] ?: DEFAULT_DND_END
+    }
+
+    /** 相册选择页长按插的小旗，只是记号，不参与抽取照片 */
+    val flaggedAlbums: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[KEY_FLAGGED_ALBUMS] ?: emptySet()
+    }
+
+    /** 累计帮用户删掉的张数，用于破整百时的那条喜报 */
+    val totalDeletedPhotos: Flow<Int> = context.dataStore.data.map { preferences ->
+        preferences[KEY_TOTAL_DELETED] ?: 0
+    }
+
+    suspend fun setFlaggedAlbums(albums: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_FLAGGED_ALBUMS] = albums
+        }
+    }
+
+    /** 记一笔删除数，返回累计后的总数（0 或负数不记账） */
+    suspend fun addDeletedPhotos(count: Int): Int {
+        if (count <= 0) return totalDeletedPhotos.first()
+        var after = count
+        context.dataStore.edit { preferences ->
+            after = (preferences[KEY_TOTAL_DELETED] ?: 0) + count
+            preferences[KEY_TOTAL_DELETED] = after
+        }
+        return after
     }
 
     suspend fun setPhotosPerSession(count: Int) {

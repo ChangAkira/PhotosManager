@@ -350,8 +350,10 @@ private fun nearestIndex(value: Int, presets: List<Int>): Int =
  * 不少 ROM 上那一档强度几乎摸不出来。这里直接开一次短震动，时长和强度自己定。
  * 也刻意不去读系统的"触摸反馈"开关：用户关掉它通常是不想让全局动作都跟着震，
  * 不等于不许应用给自己的一处交互加反馈。
+ *
+ * internal 而不是 private：相册页长按插旗／取旗也走这一下，两处的手感得一致。
  */
-private fun detentTick(context: Context) {
+internal fun detentTick(context: Context) {
     val vibrator = resolveVibrator(context) ?: return
     if (!vibrator.hasVibrator()) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

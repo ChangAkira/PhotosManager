@@ -17,7 +17,7 @@
     <string name="ch_bg">后台服务</string>
     <string name="ch_bg_desc">应用在后台运行，亮屏时提醒你整理照片</string>
     <string name="notif_background_body">后台服务运行中</string>
-    <string name="notif_deleted_body">已删除 %1$d 张照片</string>
+    <string name="notif_milestone_body">已帮您删除超过 %1$d 张图片啦！o(^▽^)o</string>
 
     <!-- 首页：权限 + 引导 + 设置入口 -->
     <string name="home_subtitle">在每次亮屏的碎片时间里管理相册</string>
@@ -70,6 +70,8 @@
     <!-- 相册选择页 -->
     <string name="album_title">相册设置</string>
     <string name="album_empty">没有读取到相册</string>
+    <string name="album_hold_hint">长按一行，等灰色进度条走满可以给这个相册插一面小旗当记号，再长按一次取掉。点一行仍然是勾选或取消勾选。</string>
+    <string name="cd_album_flagged">已作记号</string>
     <string name="album_unknown">未知相册</string>
 
     <!-- 关于页 -->

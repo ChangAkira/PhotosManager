@@ -109,20 +109,30 @@ class FloatingWindowManager(private val context: Context) {
             // 在设置 LifecycleOwner 后再设置内容
             composeView?.setContent {
                 com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme {
-                    FloatingWindowContent(
-                        onDismiss = { 
-                            Log.d("FloatingWindowManager", "用户关闭悬浮窗")
-                            dismiss() 
-                        },
-                        onComplete = { photosToDelete ->
-                            Log.d("FloatingWindowManager", "照片检查完成，准备删除 ${photosToDelete.size} 张照片")
-                            dismiss()
-                            // 只有当有照片需要删除时才显示确认删除界面
-                            if (photosToDelete.isNotEmpty()) {
-                                showConfirmDeleteActivity(photosToDelete)
+                    // M3 的 MaterialTheme 只往下发 colorScheme / typography / shapes，
+                    // 不管 LocalContentColor —— 那是 Scaffold、Surface 的活儿。悬浮窗是服务里
+                    // 裸挂着的一个 ComposeView，外层既没有 Scaffold 也没有 Surface，
+                    // 所以凡是没显式写颜色的 Icon / Text / 进度条全部退回默认的黑色：
+                    // 系统深色模式下那块底是 #171718，右上角的叉号就成了黑上黑，看不见。
+                    // 这里按当前深浅色把内容色补齐，一整层的默认取色才跟着配色走。
+                    CompositionLocalProvider(
+                        LocalContentColor provides MaterialTheme.colorScheme.onSurface
+                    ) {
+                        FloatingWindowContent(
+                            onDismiss = {
+                                Log.d("FloatingWindowManager", "用户关闭悬浮窗")
+                                dismiss()
+                            },
+                            onComplete = { photosToDelete ->
+                                Log.d("FloatingWindowManager", "照片检查完成，准备删除 ${photosToDelete.size} 张照片")
+                                dismiss()
+                                // 只有当有照片需要删除时才显示确认删除界面
+                                if (photosToDelete.isNotEmpty()) {
+                                    showConfirmDeleteActivity(photosToDelete)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
             

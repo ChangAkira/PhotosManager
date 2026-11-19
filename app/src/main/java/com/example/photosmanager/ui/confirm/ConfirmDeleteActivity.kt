@@ -26,9 +26,11 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.photosmanager.R
 import com.example.photosmanager.data.repository.PhotoRepository
+import com.example.photosmanager.data.repository.PreferencesRepository
 import com.example.photosmanager.data.repository.ReviewRepository
 import com.example.photosmanager.ui.components.ThumbnailSize
 import com.example.photosmanager.ui.theme.PHOTOSMANAGERTheme
+import com.example.photosmanager.util.NotificationHelper
 import com.example.photosmanager.util.PermissionHelper
 import kotlinx.coroutines.launch
 
@@ -44,6 +46,7 @@ class ConfirmDeleteActivity : ComponentActivity() {
     private var selectedForDelete: List<String> = emptyList()
 
     private val reviewRepository by lazy { ReviewRepository(this) }
+    private val preferencesRepository by lazy { PreferencesRepository(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -140,6 +143,17 @@ class ConfirmDeleteActivity : ComponentActivity() {
                 }
             }
             android.util.Log.d("ConfirmDeleteActivity", "删除成功 $deletedCount 张，失败 ${failed.size} 张")
+            // 记一笔累计删除数，破整百时报一声喜。数的是「媒体库里已经不在了」的张数，
+            // 不是上面 deletedCount：走系统确认框那一批是系统删的，应用这边补一刀只拿 0 行，
+            // 照 deletedCount 记的话，没开无感删除的用户一条喜报都收不到。
+            val goneCount = photoRepository.countGonePhotos(photos)
+            android.util.Log.d("ConfirmDeleteActivity", "这批已不在媒体库 $goneCount 张")
+            if (goneCount > 0) {
+                val after = preferencesRepository.addDeletedPhotos(goneCount)
+                PreferencesRepository.deletedMilestone(after - goneCount, after)?.let { milestone ->
+                    NotificationHelper.showDeletedMilestone(this@ConfirmDeleteActivity, milestone)
+                }
+            }
             // 删除失败的退回池子，否则用户永远等不到它
             if (failed.isNotEmpty()) {
                 reviewRepository.release(failed)
